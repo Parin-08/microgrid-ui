@@ -1,6 +1,28 @@
 /* =========================================================
-   CyberSecure Microgrid Controller — Complete App
+   CyberSecure Microgrid Controller — With Backend API
    ========================================================= */
+
+// API Configuration - Reads from .env file
+const API_BASE = 'https://microgrid-final.onrender.com';
+
+console.log('Connecting to backend at:', API_BASE); // This will show in browser console
+
+async function apiCall(endpoint, options = {}) {
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    return await response.json();
+  } catch (error) {
+    console.error('API call failed:', error);
+    return null;
+  }
+}
 
 // ── State ────────────────────────────────────────────────
 const STATE = {
@@ -8,7 +30,7 @@ const STATE = {
   currentPage: 'dashboard',
   alerts: [],
   logs: [],
-  simInterval: null,
+  dataInterval: null,
   chartInstances: {},
   data: {
     solar: 42.5, wind: 12.3, battery: 68, load: 38.7,
@@ -174,38 +196,37 @@ function renderLogin() {
   });
 }
 
-function handleLogin() {
+async function handleLogin() {
   const username = document.getElementById('login-user').value.trim().toLowerCase();
   const password = document.getElementById('login-pass').value;
   const role     = document.getElementById('login-role').value;
   const errorEl  = document.getElementById('login-error');
   const errorMsg = document.getElementById('login-error-msg');
 
-  // Brute-force check
-  STATE.loginAttempts[username] = (STATE.loginAttempts[username] || 0) + 1;
-  if (STATE.loginAttempts[username] > 5) {
+  // Call real backend
+  const result = await apiCall('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify({ username, password, role })
+  });
+
+  if (!result || !result.success) {
     errorEl.style.display = 'flex';
-    errorMsg.textContent = 'Account temporarily locked. Too many failed attempts.';
-    addLog('critical', 'auth', `Account lockout triggered for user: ${username}`);
-    addAlert('critical', 'Account Lockout Triggered', `User ${username} locked after 5 failed attempts.`);
+    errorMsg.textContent = result?.message || 'Invalid credentials';
+    addLog('warning', 'auth', `Failed login attempt for: ${username}`);
     return;
   }
 
-  const user = USERS[username];
-  if (!user || user.password !== password || user.role !== role) {
-    errorEl.style.display = 'flex';
-    errorMsg.textContent = `Invalid credentials. Attempt ${STATE.loginAttempts[username]}/5.`;
-    addLog('warning', 'auth', `Failed login attempt for user: "${username}" from IP 192.168.1.${rnd(100,200,0)}`);
-    if (STATE.loginAttempts[username] >= 3) {
-      addAlert('warning', 'Multiple Failed Login Attempts', `User "${username}" has ${STATE.loginAttempts[username]} failed attempts.`);
-    }
-    return;
-  }
-
-  STATE.loginAttempts[username] = 0;
-  STATE.currentUser = { username, ...user };
-  addLog('success', 'auth', `User "${username}" (${role}) authenticated successfully`, username);
+  STATE.currentUser = {
+    username,
+    role: result.role,
+    name: result.name,
+    avatar: (result.name || username).split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
+    token: result.token
+  };
+  
+  addLog('success', 'auth', `User "${username}" authenticated via backend`);
   renderApp();
+  startRealTimeData();
 }
 
 // ── Main App Shell ────────────────────────────────────────
@@ -309,15 +330,27 @@ function renderApp() {
   startClock();
   updateNotifBadge();
   renderDashboard();
-  startSimulation();
+}
 
-  // Close notif panel on outside click
-  document.addEventListener('click', e => {
-    const panel = document.getElementById('notif-panel');
-    if (panel && !panel.contains(e.target) && !e.target.closest('.notif-btn')) {
-      panel.style.display = 'none';
+function stopRealTimeData() {
+  if (STATE.dataInterval) { clearInterval(STATE.dataInterval); STATE.dataInterval = null; }
+}
+
+async function startRealTimeData() {
+  stopRealTimeData();
+  
+  async function fetchData() {
+    const data = await apiCall('/api/microgrid/status');
+    if (data) {
+      Object.assign(STATE.data, data);
+      updateLiveValues();
+      updateLiveCharts();
+      updateTopbarPills();
     }
-  });
+  }
+  
+  await fetchData();
+  STATE.dataInterval = setInterval(fetchData, 2000);
 }
 
 function toggleSidebar() {
@@ -352,7 +385,7 @@ function clearNotifs() {
 }
 function handleLogout() {
   addLog('info', 'auth', `User "${STATE.currentUser.username}" logged out`, STATE.currentUser.username);
-  stopSimulation();
+  stopRealTimeData();
   STATE.currentUser = null;
   STATE.currentPage = 'dashboard';
   STATE.chartInstances = {};
@@ -396,68 +429,6 @@ function navigateTo(page) {
   }
 }
 
-// ── Simulation Engine ─────────────────────────────────────
-function startSimulation() {
-  stopSimulation();
-  STATE.simInterval = setInterval(() => {
-    const d = STATE.data;
-    d.solar    = clamp(d.solar    + rnd(-3, 3),    0, 80);
-    d.wind     = clamp(d.wind     + rnd(-2, 2),    0, 25);
-    d.load     = clamp(d.load     + rnd(-2, 2),    20, 70);
-    d.battery  = clamp(d.battery  + rnd(-1, 1.5),  10, 100);
-    d.voltage  = clamp(d.voltage  + rnd(-1, 1),    220, 242);
-    d.frequency= clamp(d.frequency+ rnd(-0.05,0.05),49.8, 50.2);
-    d.temperature = clamp(d.temperature + rnd(-0.5,0.5), 20, 55);
-    d.threatScore = clamp(d.threatScore + rnd(-5, 5, 0), 0, 100);
-
-    const totalGen = d.solar + d.wind;
-    d.gridImport = totalGen + (d.battery > 20 ? 0 : 5) < d.load ? +(d.load - totalGen).toFixed(1) : 0;
-    d.gridExport = totalGen > d.load + 5 ? +(totalGen - d.load).toFixed(1) : 0;
-
-    // History
-    STATE.history.solar.push(+d.solar.toFixed(1));   if (STATE.history.solar.length > 20) STATE.history.solar.shift();
-    STATE.history.load.push(+d.load.toFixed(1));      if (STATE.history.load.length  > 20) STATE.history.load.shift();
-    STATE.history.battery.push(+d.battery.toFixed(1));if (STATE.history.battery.length>20) STATE.history.battery.shift();
-    STATE.history.grid.push(+(d.gridExport - d.gridImport).toFixed(1)); if (STATE.history.grid.length>20) STATE.history.grid.shift();
-    STATE.history.threat.push(+d.threatScore.toFixed(0)); if (STATE.history.threat.length>20) STATE.history.threat.shift();
-
-    // Automatic alerts
-    if (d.battery < 20 && Math.random() < 0.05) {
-      addAlert('critical', 'Critical Battery Level!', `Battery SOC at ${d.battery.toFixed(0)}%. Emergency grid import activated.`);
-      addLog('critical', 'system', `Battery SOC critically low: ${d.battery.toFixed(0)}%`);
-    }
-    if (d.threatScore > 75 && Math.random() < 0.05) {
-      addAlert('critical', 'High Threat Score Detected!', `Anomaly detection score: ${d.threatScore.toFixed(0)}/100. Possible intrusion.`);
-      addLog('critical', 'security', `Threat score elevated to ${d.threatScore.toFixed(0)} — possible intrusion attempt`);
-    }
-    if (Math.abs(d.frequency - 50) > 0.15 && Math.random() < 0.1) {
-      addAlert('warning', 'Frequency Deviation', `Grid frequency at ${d.frequency.toFixed(2)} Hz — outside ±0.1 Hz tolerance.`);
-    }
-
-    // Sim log events
-    if (Math.random() < 0.06) {
-      const simEvents = [
-        ['info','system',`MPPT controller updated: Solar output ${d.solar.toFixed(1)} kW`],
-        ['info','system',`Load balancer: demand ${d.load.toFixed(1)} kW, generation ${(d.solar+d.wind).toFixed(1)} kW`],
-        ['info','system',`Battery charge cycle: SOC ${d.battery.toFixed(0)}%`],
-        ['info','system',`Grid frequency nominal: ${d.frequency.toFixed(3)} Hz`],
-        ['info','security',`MQTT heartbeat received — broker.microgrid.local`],
-        ['info','security',`JWT token validated for active session`],
-      ];
-      const e = simEvents[Math.floor(Math.random() * simEvents.length)];
-      addLog(e[0], e[1], e[2]);
-    }
-
-    updateLiveValues();
-    updateLiveCharts();
-    updateTopbarPills();
-  }, 2000);
-}
-
-function stopSimulation() {
-  if (STATE.simInterval) { clearInterval(STATE.simInterval); STATE.simInterval = null; }
-}
-
 function updateTopbarPills() {
   const d = STATE.data;
   const pill = document.getElementById('pill-mode');
@@ -467,20 +438,20 @@ function updateTopbarPills() {
   }
 }
 
-// ── Live Value Updates (without re-render) ─────────────────
+// ── Live Value Updates ─────────────────────────────────
 function updateLiveValues() {
   const d = STATE.data;
   const sets = {
     'live-solar':    `${d.solar.toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-wind':     `${d.wind.toFixed(1)} <span class="kpi-unit">kW</span>`,
+    'live-wind':     `${(d.wind || 12.3).toFixed(1)} <span class="kpi-unit">kW</span>`,
     'live-battery':  `${d.battery.toFixed(0)} <span class="kpi-unit">%</span>`,
     'live-load':     `${d.load.toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-grid-exp': `${d.gridExport.toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-grid-imp': `${d.gridImport.toFixed(1)} <span class="kpi-unit">kW</span>`,
+    'live-grid-exp': `${(d.gridExport || 0).toFixed(1)} <span class="kpi-unit">kW</span>`,
+    'live-grid-imp': `${(d.gridImport || 0).toFixed(1)} <span class="kpi-unit">kW</span>`,
     'live-voltage':  `${d.voltage.toFixed(1)} <span class="kpi-unit">V</span>`,
     'live-freq':     `${d.frequency.toFixed(2)} <span class="kpi-unit">Hz</span>`,
-    'live-temp':     `${d.temperature.toFixed(1)} <span class="kpi-unit">°C</span>`,
-    'live-threat':   `${d.threatScore.toFixed(0)} <span class="kpi-unit">/100</span>`,
+    'live-temp':     `${(d.temperature || 34.2).toFixed(1)} <span class="kpi-unit">°C</span>`,
+    'live-threat':   `${(d.threatScore || 18).toFixed(0)} <span class="kpi-unit">/100</span>`,
   };
   Object.entries(sets).forEach(([id, val]) => {
     const el = document.getElementById(id);
@@ -497,13 +468,13 @@ function updateLiveValues() {
 
   // Threat bar
   const threatFill = document.getElementById('threat-fill');
-  if (threatFill) threatFill.style.width = `${d.threatScore}%`;
+  if (threatFill) threatFill.style.width = `${(d.threatScore || 18)}%`;
 
   // Topo node values
   const topoSolar = document.getElementById('topo-solar-val');   if(topoSolar) topoSolar.textContent = `${d.solar.toFixed(1)} kW`;
   const topoBatt  = document.getElementById('topo-batt-val');    if(topoBatt)  topoBatt.textContent  = `${d.battery.toFixed(0)}%`;
   const topoLoad  = document.getElementById('topo-load-val');    if(topoLoad)  topoLoad.textContent  = `${d.load.toFixed(1)} kW`;
-  const topoGrid  = document.getElementById('topo-grid-val');    if(topoGrid)  topoGrid.textContent  = `${d.gridExport.toFixed(1)} kW`;
+  const topoGrid  = document.getElementById('topo-grid-val');    if(topoGrid)  topoGrid.textContent  = `${(d.gridExport || 0).toFixed(1)} kW`;
 }
 
 function updateLiveCharts() {
@@ -591,7 +562,7 @@ function renderDashboard() {
       </div>
       <div class="kpi-card purple">
         <div class="kpi-icon purple"><i class="fas fa-exchange-alt"></i></div>
-        <div class="kpi-value" id="live-grid-exp">${d.gridExport.toFixed(1)} <span class="kpi-unit">kW</span></div>
+        <div class="kpi-value" id="live-grid-exp">${(d.gridExport || 0).toFixed(1)} <span class="kpi-unit">kW</span></div>
         <div class="kpi-label">Grid Export</div>
         <div class="kpi-trend up"><i class="fas fa-arrow-up"></i> Exporting to grid</div>
       </div>
@@ -632,8 +603,8 @@ function renderDashboard() {
         </div>
         <div class="chart-wrapper sm"><canvas id="chart-grid"></canvas></div>
         <hr class="divider">
-        <div class="data-row"><span class="data-row-label">Grid Import</span><span class="data-row-value red" id="live-grid-imp">${d.gridImport.toFixed(1)} kW</span></div>
-        <div class="data-row"><span class="data-row-label">Grid Export</span><span class="data-row-value green">${d.gridExport.toFixed(1)} kW</span></div>
+        <div class="data-row"><span class="data-row-label">Grid Import</span><span class="data-row-value red" id="live-grid-imp">${(d.gridImport || 0).toFixed(1)} kW</span></div>
+        <div class="data-row"><span class="data-row-label">Grid Export</span><span class="data-row-value green">${(d.gridExport || 0).toFixed(1)} kW</span></div>
         <div class="data-row"><span class="data-row-label">Voltage</span><span class="data-row-value" id="live-voltage">${d.voltage.toFixed(1)} V</span></div>
         <div class="data-row"><span class="data-row-label">Frequency</span><span class="data-row-value" id="live-freq">${d.frequency.toFixed(2)} Hz</span></div>
       </div>
@@ -646,9 +617,9 @@ function renderDashboard() {
         <div class="enc-status" style="background:rgba(168,85,247,0.07);border-color:rgba(168,85,247,0.2);color:var(--accent-purple);"><i class="fas fa-key"></i> JWT Auth — Token valid</div>
         <div style="margin-top:12px;">
           <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;">
-            <span>Threat Score</span><span id="live-threat">${d.threatScore.toFixed(0)}/100</span>
+            <span>Threat Score</span><span id="live-threat">${(d.threatScore || 18).toFixed(0)}/100</span>
           </div>
-          <div class="threat-meter"><div class="threat-fill" id="threat-fill" style="width:${d.threatScore}%"></div></div>
+          <div class="threat-meter"><div class="threat-fill" id="threat-fill" style="width:${(d.threatScore || 18)}%"></div></div>
         </div>
         <hr class="divider">
         <div class="data-row"><span class="data-row-label">Active Connections</span><span class="data-row-value cyan">4</span></div>
@@ -665,8 +636,8 @@ function renderDashboard() {
           <div class="progress-bar-bg"><div class="progress-bar-fill yellow" style="width:${(d.solar/80*100).toFixed(0)}%"></div></div>
         </div>
         <div class="progress-bar-wrapper">
-          <div class="progress-label"><span>Wind Output</span><span>${d.wind.toFixed(1)} / 25 kW</span></div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill cyan" style="width:${(d.wind/25*100).toFixed(0)}%"></div></div>
+          <div class="progress-label"><span>Wind Output</span><span>${(d.wind || 12.3).toFixed(1)} / 25 kW</span></div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill cyan" style="width:${((d.wind || 12.3)/25*100).toFixed(0)}%"></div></div>
         </div>
         <div class="progress-bar-wrapper">
           <div class="progress-label"><span>Load Utilization</span><span>${d.load.toFixed(1)} / 70 kW</span></div>
@@ -677,7 +648,7 @@ function renderDashboard() {
           <div class="progress-bar-bg"><div class="progress-bar-fill green" style="width:${d.battery.toFixed(0)}%"></div></div>
         </div>
         <hr class="divider">
-        <div class="data-row"><span class="data-row-label">Temperature</span><span class="data-row-value" id="live-temp">${d.temperature.toFixed(1)} °C</span></div>
+        <div class="data-row"><span class="data-row-label">Temperature</span><span class="data-row-value" id="live-temp">${(d.temperature || 34.2).toFixed(1)} °C</span></div>
         <div class="data-row"><span class="data-row-label">Control Mode</span><span class="data-row-value cyan">GRID-CONNECTED</span></div>
         <div class="data-row"><span class="data-row-label">Uptime</span><span class="data-row-value green">99.8%</span></div>
         <div class="data-row"><span class="data-row-label">Last Sync</span><span class="data-row-value">${now()}</span></div>
@@ -757,7 +728,7 @@ function renderEnergyPage() {
       </div>
       <div class="kpi-card cyan">
         <div class="kpi-icon cyan"><i class="fas fa-wind"></i></div>
-        <div class="kpi-value" id="live-wind">${d.wind.toFixed(1)} <span class="kpi-unit">kW</span></div>
+        <div class="kpi-value" id="live-wind">${(d.wind || 12.3).toFixed(1)} <span class="kpi-unit">kW</span></div>
         <div class="kpi-label">Wind Generation</div>
         <div class="kpi-trend stable"><i class="fas fa-wind"></i> Nominal</div>
       </div>
@@ -826,9 +797,9 @@ function renderEnergyPage() {
   </div>`;
 
   setTimeout(() => {
-    const total = d.solar + d.wind + d.gridImport + 0.1;
+    const total = d.solar + (d.wind || 12.3) + (d.gridImport || 0) + 0.1;
     makeChart('chart-mix', 'doughnut', [], [{
-      data: [d.solar, d.wind, d.gridImport > 0 ? d.gridImport : 0.1, d.battery * 0.3],
+      data: [d.solar, d.wind || 12.3, d.gridImport > 0 ? d.gridImport : 0.1, d.battery * 0.3],
       backgroundColor: ['rgba(255,204,0,0.8)','rgba(0,212,255,0.8)','rgba(168,85,247,0.8)','rgba(0,255,136,0.8)'],
       borderColor: ['#ffcc00','#00d4ff','#a855f7','#00ff88'],
       borderWidth: 2, hoverOffset: 8
@@ -836,7 +807,6 @@ function renderEnergyPage() {
       legend: true,
       extra: { plugins: { legend: { display: true, position: 'bottom', labels: { color:'#7a9cc0', font:{size:11}, padding:16 } } } }
     });
-    // fix legend labels
     const mc = STATE.chartInstances['chart-mix'];
     if (mc) { mc.data.labels = ['Solar','Wind','Grid Import','Battery']; mc.update(); }
 
@@ -881,58 +851,46 @@ function renderGridPage() {
       </div>
       <div class="topology-container" id="topo-container">
         <svg id="topo-canvas" viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet">
-          <!-- Solar → Controller -->
           <line x1="130" y1="80" x2="280" y2="150" stroke="rgba(255,204,0,0.5)" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite"/></line>
-          <!-- Wind → Controller -->
           <line x1="130" y1="220" x2="280" y2="150" stroke="rgba(0,212,255,0.5)" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1.2s" repeatCount="indefinite"/></line>
-          <!-- Battery ↔ Controller -->
           <line x1="380" y1="150" x2="480" y2="80" stroke="rgba(0,255,136,0.5)" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" from="0" to="-24" dur="0.8s" repeatCount="indefinite"/></line>
-          <!-- Controller → Load -->
           <line x1="380" y1="150" x2="480" y2="220" stroke="rgba(168,85,247,0.5)" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1.1s" repeatCount="indefinite"/></line>
-          <!-- Controller ↔ Grid -->
           <line x1="380" y1="150" x2="620" y2="150" stroke="rgba(255,140,0,0.5)" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" from="0" to="-24" dur="0.9s" repeatCount="indefinite"/></line>
         </svg>
 
-        <!-- Solar node -->
         <div class="topo-node" style="left:60px;top:40px;">
           <div class="topo-node-icon solar">☀️</div>
           <div class="topo-node-label">Solar PV</div>
           <div class="topo-node-value" id="topo-solar-val">${d.solar.toFixed(1)} kW</div>
         </div>
-        <!-- Wind node -->
         <div class="topo-node" style="left:60px;top:185px;">
           <div class="topo-node-icon load" style="border-color:rgba(0,212,255,0.6)">💨</div>
           <div class="topo-node-label">Wind Turbine</div>
-          <div class="topo-node-value" id="live-wind">${d.wind.toFixed(1)} kW</div>
+          <div class="topo-node-value" id="live-wind">${(d.wind || 12.3).toFixed(1)} kW</div>
         </div>
-        <!-- Controller node -->
         <div class="topo-node" style="left:290px;top:108px;">
           <div class="topo-node-icon controller" style="width:80px;height:80px;font-size:32px;border-radius:50%;">⚡</div>
           <div class="topo-node-label">Smart Controller</div>
           <div class="topo-node-value">ACTIVE</div>
         </div>
-        <!-- Battery node -->
         <div class="topo-node" style="left:490px;top:40px;">
           <div class="topo-node-icon battery">🔋</div>
           <div class="topo-node-label">Battery Storage</div>
           <div class="topo-node-value" id="topo-batt-val">${d.battery.toFixed(0)}%</div>
         </div>
-        <!-- Load node -->
         <div class="topo-node" style="left:490px;top:185px;">
           <div class="topo-node-icon load">⚙️</div>
           <div class="topo-node-label">Load Center</div>
           <div class="topo-node-value" id="topo-load-val">${d.load.toFixed(1)} kW</div>
         </div>
-        <!-- Grid node -->
         <div class="topo-node" style="left:635px;top:108px;">
           <div class="topo-node-icon grid">🏭</div>
           <div class="topo-node-label">Utility Grid</div>
-          <div class="topo-node-value" id="topo-grid-val">${d.gridExport.toFixed(1)} kW</div>
+          <div class="topo-node-value" id="topo-grid-val">${(d.gridExport || 0).toFixed(1)} kW</div>
         </div>
       </div>
     </div>
 
-    <!-- Grid Parameters -->
     <div class="grid-3">
       <div class="card">
         <div class="card-title" style="margin-bottom:14px;"><i class="fas fa-wave-square icon"></i>&nbsp; Grid Parameters</div>
@@ -985,7 +943,6 @@ function renderSecurityPage() {
       <button class="btn btn-primary" onclick="markAllAlertsRead()"><i class="fas fa-check-double"></i> Mark All Read</button>
     </div>
 
-    <!-- Security KPIs -->
     <div class="grid-4" style="margin-bottom:20px;">
       <div class="kpi-card green">
         <div class="kpi-icon green"><i class="fas fa-lock"></i></div>
@@ -1014,7 +971,6 @@ function renderSecurityPage() {
     </div>
 
     <div class="grid-2" style="margin-bottom:20px;">
-      <!-- Encryption Status -->
       <div class="card">
         <div class="card-header">
           <div class="card-title"><i class="fas fa-shield-alt icon"></i> Encryption &amp; Security Modules</div>
@@ -1036,7 +992,6 @@ function renderSecurityPage() {
             <span style="font-size:11px;opacity:0.7;">${note}</span>
           </div>`).join('')}
       </div>
-      <!-- Active Alerts -->
       <div class="card">
         <div class="card-header">
           <div class="card-title"><i class="fas fa-bell icon"></i> Security Alerts</div>
@@ -1056,7 +1011,6 @@ function renderSecurityPage() {
       </div>
     </div>
 
-    <!-- MQTT & Communication -->
     <div class="card">
       <div class="card-header">
         <div class="card-title"><i class="fas fa-satellite-dish icon"></i> MQTT Communication &amp; Protocol Security</div>
@@ -1106,11 +1060,11 @@ function renderAnomalyPage() {
   if (!el) return;
 
   const anomalies = [
-    { name:'FDIA — False Data Injection', score: d.threatScore > 70 ? rnd(75,95,0) : rnd(5,20,0), detected: d.threatScore > 70 },
+    { name:'FDIA — False Data Injection', score: (d.threatScore || 18) > 70 ? rnd(75,95,0) : rnd(5,20,0), detected: (d.threatScore || 18) > 70 },
     { name:'DoS / DDoS Attack Pattern',    score: rnd(5,15,0),   detected: false },
     { name:'Man-in-the-Middle Attempt',    score: rnd(3,12,0),   detected: false },
     { name:'Replay Attack Signature',      score: rnd(8,18,0),   detected: false },
-    { name:'Voltage Anomaly (sensor)',     score: d.threatScore > 60 ? rnd(60,80,0) : rnd(10,25,0), detected: d.threatScore > 60 },
+    { name:'Voltage Anomaly (sensor)',     score: (d.threatScore || 18) > 60 ? rnd(60,80,0) : rnd(10,25,0), detected: (d.threatScore || 18) > 60 },
     { name:'Unauthorized Device Access',   score: rnd(5,18,0),   detected: false },
   ];
 
@@ -1127,22 +1081,21 @@ function renderAnomalyPage() {
       </div>
     </div>
 
-    <!-- Overall Threat Meter -->
     <div class="card" style="margin-bottom:20px;">
       <div class="card-header">
         <div class="card-title"><i class="fas fa-radiation-alt icon"></i> Threat Level Assessment</div>
-        <span class="status-indicator ${d.threatScore > 70 ? 'offline' : d.threatScore > 40 ? 'warning' : 'online'}">
-          ${d.threatScore > 70 ? '⚠ HIGH RISK' : d.threatScore > 40 ? '! MEDIUM' : '✓ LOW RISK'}
+        <span class="status-indicator ${(d.threatScore || 18) > 70 ? 'offline' : (d.threatScore || 18) > 40 ? 'warning' : 'online'}">
+          ${(d.threatScore || 18) > 70 ? '⚠ HIGH RISK' : (d.threatScore || 18) > 40 ? '! MEDIUM' : '✓ LOW RISK'}
         </span>
       </div>
       <div style="display:flex;align-items:center;gap:20px;">
         <div style="flex:1;">
           <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:6px;">
             <span>Threat Score</span>
-            <span id="live-threat">${d.threatScore.toFixed(0)} / 100</span>
+            <span id="live-threat">${(d.threatScore || 18).toFixed(0)} / 100</span>
           </div>
           <div style="height:16px;background:rgba(0,0,0,0.4);border-radius:8px;overflow:hidden;border:1px solid var(--border-color);">
-            <div style="height:100%;width:${d.threatScore}%;background:linear-gradient(90deg,#00ff88 0%,#ffcc00 50%,#ff3366 100%);border-radius:8px;transition:width 1s;" id="threat-fill"></div>
+            <div style="height:100%;width:${(d.threatScore || 18)}%;background:linear-gradient(90deg,#00ff88 0%,#ffcc00 50%,#ff3366 100%);border-radius:8px;transition:width 1s;" id="threat-fill"></div>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:4px;">
             <span>0 — SAFE</span><span>50 — MODERATE</span><span>100 — CRITICAL</span>
@@ -1155,7 +1108,6 @@ function renderAnomalyPage() {
     </div>
 
     <div class="grid-2" style="margin-bottom:20px;">
-      <!-- Anomaly List -->
       <div class="card">
         <div class="card-header">
           <div class="card-title"><i class="fas fa-bug icon"></i> Anomaly Detectors</div>
@@ -1173,7 +1125,6 @@ function renderAnomalyPage() {
             <span class="status-indicator ${a.detected?'offline':'online'}" style="font-size:11px;padding:3px 8px;">${a.detected?'DETECTED':'NORMAL'}</span>
           </div>`).join('')}
       </div>
-      <!-- ML Model Info -->
       <div class="card">
         <div class="card-header">
           <div class="card-title"><i class="fas fa-brain icon"></i> ML Model Status</div>
@@ -1197,7 +1148,6 @@ function renderAnomalyPage() {
       </div>
     </div>
 
-    <!-- Attack Scenarios -->
     <div class="card">
       <div class="card-header">
         <div class="card-title"><i class="fas fa-flask icon"></i> Attack Simulation Scenarios</div>
@@ -1229,7 +1179,7 @@ function renderAnomalyPage() {
 function runAnomalyScan() {
   addLog('info', 'security', 'Full anomaly scan initiated — IDS running Isolation Forest classifier');
   setTimeout(() => {
-    const score = STATE.data.threatScore;
+    const score = STATE.data.threatScore || 18;
     if (score > 60) {
       addLog('critical', 'security', `Anomaly scan complete — Threat score: ${score.toFixed(0)}/100 — Anomalies detected!`);
       addAlert('critical', 'Anomaly Scan Alert', `IDS detected potential threats. Score: ${score.toFixed(0)}/100`);
@@ -1241,7 +1191,7 @@ function runAnomalyScan() {
 }
 
 function simulateAttack(type) {
-  STATE.data.threatScore = Math.min(100, STATE.data.threatScore + rnd(30,50,0));
+  STATE.data.threatScore = Math.min(100, (STATE.data.threatScore || 18) + rnd(30,50,0));
   addLog('critical', 'security', `[SIMULATION] ${type} attack initiated — IDS activated`);
   addAlert('critical', `[SIMULATION] ${type} Attack Detected`, `Simulated ${type} attack triggered. IDS countermeasures engaged.`);
   renderAnomalyPage();
@@ -1272,7 +1222,6 @@ function renderLogsPage() {
       </div>
     </div>
 
-    <!-- Filters -->
     <div class="card" style="margin-bottom:16px;padding:14px 20px;">
       <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
         <div style="position:relative;flex:1;min-width:200px;">
@@ -1298,7 +1247,6 @@ function renderLogsPage() {
       </div>
     </div>
 
-    <!-- Log Stats -->
     <div class="grid-4" style="margin-bottom:16px;">
       ${[
         ['success','check-circle','Success',  STATE.logs.filter(l=>l.type==='success').length, 'green'],
@@ -1317,19 +1265,15 @@ function renderLogsPage() {
         </div>`).join('')}
     </div>
 
-    <!-- Log Table -->
     <div class="card" style="padding:0;overflow:hidden;">
       <div style="overflow-x:auto;">
         <table class="log-table">
           <thead>
-            <tr>
-              <th>Time</th><th>Level</th><th>Category</th><th>Message</th><th>User</th>
-            </tr>
+            <tr><th>Time</th><th>Level</th><th>Category</th><th>Message</th><th>User</th></tr>
           </thead>
           <tbody>
             ${filtered.slice(0, 100).map(l => `
-              <tr>
-                <td class="log-time">${l.time}</td>
+              <tr><td class="log-time">${l.time}</td>
                 <td><span class="log-badge ${l.type}"><i class="fas fa-${l.type==='critical'?'radiation-alt':l.type==='warning'?'exclamation-triangle':l.type==='success'?'check-circle':'info-circle'}"></i> ${l.type}</span></td>
                 <td><span class="log-badge ${l.category}">${l.category}</span></td>
                 <td class="log-msg">${l.msg}</td>
@@ -1377,7 +1321,6 @@ function renderSettingsPage() {
       </div>
     </div>
     <div class="grid-2">
-      <!-- Control Settings -->
       <div class="card">
         <div class="card-title" style="margin-bottom:18px;"><i class="fas fa-sliders-h icon"></i>&nbsp; Controller Parameters</div>
         ${[
@@ -1397,7 +1340,6 @@ function renderSettingsPage() {
         <hr class="divider">
         <button class="btn btn-success" onclick="addLog('success','system','Controller parameters updated by admin')"><i class="fas fa-save"></i> Save Parameters</button>
       </div>
-      <!-- Security Settings -->
       <div class="card">
         <div class="card-title" style="margin-bottom:18px;"><i class="fas fa-shield-alt icon"></i>&nbsp; Security Configuration</div>
         ${[
@@ -1420,7 +1362,6 @@ function renderSettingsPage() {
         <hr class="divider">
         <button class="btn btn-primary" onclick="addLog('success','security','Security configuration saved by admin')"><i class="fas fa-save"></i> Save Security Config</button>
       </div>
-      <!-- MQTT Config -->
       <div class="card">
         <div class="card-title" style="margin-bottom:18px;"><i class="fas fa-satellite-dish icon"></i>&nbsp; MQTT Broker Configuration</div>
         ${[['Broker Host','broker.microgrid.local'],['Port','8883'],['Client ID','mgc-controller-01'],['Keep-Alive (s)','60'],['QoS Level','2']].map(([label,val])=>`
@@ -1434,7 +1375,6 @@ function renderSettingsPage() {
           <button class="btn btn-success btn-sm" onclick="addLog('success','system','MQTT config saved')"><i class="fas fa-save"></i> Save</button>
         </div>
       </div>
-      <!-- System Info -->
       <div class="card">
         <div class="card-title" style="margin-bottom:18px;"><i class="fas fa-info-circle icon"></i>&nbsp; System Information</div>
         ${[
@@ -1480,19 +1420,11 @@ function renderUsersPage() {
       <button class="btn btn-primary" onclick="addLog('info','auth','New user creation initiated by admin')"><i class="fas fa-user-plus"></i> Add User</button>
     </div>
 
-    <!-- Role Permissions Matrix -->
     <div class="card" style="margin-bottom:20px;">
       <div class="card-title" style="margin-bottom:16px;"><i class="fas fa-table icon"></i>&nbsp; Role Permissions Matrix</div>
       <div style="overflow-x:auto;">
         <table class="log-table">
-          <thead>
-            <tr>
-              <th>Permission</th>
-              <th><span class="role-badge admin">ADMIN</span></th>
-              <th><span class="role-badge operator">OPERATOR</span></th>
-              <th><span class="role-badge viewer">VIEWER</span></th>
-            </tr>
-          </thead>
+          <thead><tr><th>Permission</th><th><span class="role-badge admin">ADMIN</span></th><th><span class="role-badge operator">OPERATOR</span></th><th><span class="role-badge viewer">VIEWER</span></th></tr></thead>
           <tbody>
             ${[
               ['View Dashboard',            true, true,  true  ],
@@ -1507,8 +1439,7 @@ function renderUsersPage() {
               ['Export Logs / Reports',     true, true,  false ],
               ['Firmware Update',           true, false, false ],
             ].map(([perm, admin, op, viewer]) => `
-              <tr>
-                <td>${perm}</td>
+              <table><td>${perm}</td>
                 <td style="text-align:center;">${admin ? '<i class="fas fa-check-circle" style="color:var(--accent-green);"></i>' : '<i class="fas fa-times-circle" style="color:var(--text-muted);"></i>'}</td>
                 <td style="text-align:center;">${op    ? '<i class="fas fa-check-circle" style="color:var(--accent-green);"></i>' : '<i class="fas fa-times-circle" style="color:var(--text-muted);"></i>'}</td>
                 <td style="text-align:center;">${viewer? '<i class="fas fa-check-circle" style="color:var(--accent-green);"></i>' : '<i class="fas fa-times-circle" style="color:var(--text-muted);"></i>'}</td>
@@ -1518,7 +1449,6 @@ function renderUsersPage() {
       </div>
     </div>
 
-    <!-- User List -->
     <div class="card">
       <div class="card-header">
         <div class="card-title"><i class="fas fa-users icon"></i> Active Users &amp; Sessions</div>
