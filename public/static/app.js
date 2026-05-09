@@ -1512,6 +1512,24 @@ function renderUsersPage() {
 document.addEventListener('DOMContentLoaded', () => {
   renderLogin();
 });
+// ── Fetch Real Anomalies from Pranav's Backend ──────────────────
+async function fetchRealAnomalies() {
+  try {
+    const res = await fetch('https://microgrid-final.onrender.com/anomalies/');
+    const data = await res.json();
+    if (Array.isArray(data) && data.length > 0) {
+      state.data.anomalies = data;
+      state.data.threatScore = Math.min(100, data.length * 10);
+      console.log('Real anomalies loaded:', data.length);
+    }
+  } catch(e) {
+    console.error('Failed to fetch anomalies:', e);
+  }
+}
+
+fetchRealAnomalies();
+setInterval(fetchRealAnomalies, 10000);
+
 // ── Real HiveMQ MQTT Connection ──────────────────────────────
 function initMQTT() {
   const client = mqtt.connect('wss://b796810c8d774e1d909a33856b193c2d.s1.eu.hivemq.cloud:8884/mqtt', {
