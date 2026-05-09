@@ -202,6 +202,24 @@ async function handleLogin() {
   const password = document.getElementById('login-pass').value;
   const role     = document.getElementById('login-role').value;
   const errorEl  = document.getElementById('login-error');
+  // Report failed login to Pranav's backend
+  if (!USERS[username] || USERS[username].password !== password) {
+    fetch('https://microgrid-final.onrender.com/anomalies/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        device_id: 'microgrid-ui',
+        signal: 'login_attempt',
+        value: 1,
+        expected_min: 0,
+        expected_max: 0,
+        anomaly_score: 85,
+        severity: 'high',
+        attack_type: 'BruteForce',
+        message: `Failed login attempt for user: ${username}`
+      })
+    }).catch(e => console.error('Anomaly report failed:', e));
+  }
   const errorMsg = document.getElementById('login-error-msg');
 
   // Call real backend
