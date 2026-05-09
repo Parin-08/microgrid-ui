@@ -9,7 +9,7 @@ console.log('Connecting to backend at:', API_BASE);
 
 async function apiCall(endpoint, options = {}) {
   try {
-    const response = await fetch(⁠'${API_BASE}${endpoint}',⁠{
+    const response = await fetch(API_BASE + endpoint, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -49,9 +49,9 @@ const STATE = {
 };
 
 const USERS = {
-  admin:    { password: 'admin123',    role: 'admin',    name: 'Dr. Arjun Mehta',    avatar: 'AM' },
-  operator: { password: 'oper456',     role: 'operator', name: 'Priya Sharma',        avatar: 'PS' },
-  viewer:   { password: 'view789',     role: 'viewer',   name: 'Raj Patel',           avatar: 'RP' },
+  admin:    { password: 'secret',    role: 'admin',    name: 'Dr. Arjun Mehta',    avatar: 'AM' },
+  operator: { password: 'secret',     role: 'operator', name: 'Priya Sharma',        avatar: 'PS' },
+  viewer:   { password: 'secret',     role: 'viewer',   name: 'Raj Patel',           avatar: 'RP' },
 };
 
 const ROLE_PERMISSIONS = {
