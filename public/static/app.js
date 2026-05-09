@@ -1522,8 +1522,10 @@ async function fetchRealAnomalies() {
     const data = await res.json();
     console.log('Real anomalies:', data);
     if (Array.isArray(data) && data.length > 0) {
-      state.data.anomalies = data;
-      state.data.threatScore = Math.min(100, data.length * 10);
+      if (typeof state !== 'undefined') {
+        state.data.anomalies = data;
+        state.data.threatScore = Math.min(100, data.length * 10);
+      }
     }
   } catch(e) {
     console.error('Failed to fetch anomalies:', e);
