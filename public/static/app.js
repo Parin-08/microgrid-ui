@@ -5,24 +5,25 @@
 // API Configuration - Reads from .env file
 const API_BASE = 'https://microgrid-final.onrender.com';
 
-console.log('Connecting to backend at:', API_BASE); // This will show in browser console
+console.log('Connecting to backend at:', API_BASE);
 
 async function apiCall(endpoint, options = {}) {
   try {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
+    const response = await fetch(⁠'${API_BASE}${endpoint}',⁠{
       ...options,
       headers: {
         'Content-Type': 'application/json',
         ...options.headers,
       },
     });
-    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    if (!response.ok) throw new Error(⁠ API error: ${response.status} ⁠);
     return await response.json();
   } catch (error) {
     console.error('API call failed:', error);
     return null;
   }
 }
+  
 
 // ── State ────────────────────────────────────────────────
 const STATE = {
@@ -179,9 +180,9 @@ function renderLogin() {
       </div>
       <div class="demo-creds">
         <div style="font-size:11px;font-weight:700;margin-bottom:6px;color:var(--accent-cyan);letter-spacing:1px;">DEMO CREDENTIALS</div>
-        <div>👑 <strong>admin</strong> / admin123 — Full access</div>
-        <div>⚙️ <strong>operator</strong> / oper456 — Monitoring + control</div>
-        <div>👁 <strong>viewer</strong> / view789 — Read-only access</div>
+        <div>👑 <strong>admin</strong> / secret— Full access</div>
+        <div>⚙️ <strong>operator</strong> / secret— Monitoring + control</div>
+        <div>👁 <strong>viewer</strong> / secret— Read-only access</div>
       </div>
       <div class="mqtt-bar" style="margin-top:16px;">
         <span class="dot"></span>
@@ -206,10 +207,10 @@ async function handleLogin() {
   // Call real backend
   const result = await apiCall('/auth/login', {
     method: 'POST',
-    body: JSON.stringify({ username, password, role })
+    body: JSON.stringify({ username, password })
   });
 
-  if (!result || !result.success) {
+  if (!result || !result.access_token) {
     errorEl.style.display = 'flex';
     errorMsg.textContent = result?.message || 'Invalid credentials';
     addLog('warning', 'auth', `Failed login attempt for: ${username}`);
@@ -221,7 +222,7 @@ async function handleLogin() {
     role: result.role,
     name: result.name,
     avatar: (result.name || username).split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase(),
-    token: result.token
+    token: result.access_token
   };
   
   addLog('success', 'auth', `User "${username}" authenticated via backend`);
@@ -340,7 +341,10 @@ async function startRealTimeData() {
   stopRealTimeData();
   
   async function fetchData() {
-    const data = await apiCall('/api/microgrid/status');
+    const data = await apiCall('/telemetry/live', {
+  headers: { 'Authorization': `Bearer ${STATE.currentUser.token}` }
+});
+
     if (data) {
       Object.assign(STATE.data, data);
       updateLiveValues();
