@@ -1515,12 +1515,15 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Fetch Real Anomalies from Pranav's Backend ──────────────────
 async function fetchRealAnomalies() {
   try {
-    const res = await fetch('https://microgrid-final.onrender.com/anomalies/');
+    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc3ODMxNDcyMH0.6af4oaM7ReCp1eawiThaDNYu7t0iHL9MadeKNivgPz4';
+    const res = await fetch('https://microgrid-final.onrender.com/anomalies/', {
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
     const data = await res.json();
+    console.log('Real anomalies:', data);
     if (Array.isArray(data) && data.length > 0) {
       state.data.anomalies = data;
       state.data.threatScore = Math.min(100, data.length * 10);
-      console.log('Real anomalies loaded:', data.length);
     }
   } catch(e) {
     console.error('Failed to fetch anomalies:', e);
