@@ -16,7 +16,7 @@ async function apiCall(endpoint, options = {}) {
         ...options.headers,
       },
     });
-    if (!response.ok) throw new Error(⁠ API error: ${response.status} ⁠);
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
     return await response.json();
   } catch (error) {
     console.error('API call failed:', error);
