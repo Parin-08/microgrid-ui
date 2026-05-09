@@ -198,6 +198,8 @@ function renderLogin() {
 }
 
 async function handleLogin() {
+  const btn = document.querySelector('.btn-login');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...'; }
   const username = document.getElementById('login-user').value.trim().toLowerCase();
   const password = document.getElementById('login-pass').value;
   const role     = document.getElementById('login-role').value;
@@ -230,6 +232,8 @@ async function handleLogin() {
 
   if (!result || !result.access_token) {
     errorEl.style.display = 'flex';
+  const btn2 = document.querySelector('.btn-login');
+  if (btn2) { btn2.disabled = false; btn2.innerHTML = 'AUTHENTICATE & ACCESS'; }
     errorMsg.textContent = result?.message || 'Invalid credentials';
     addLog('warning', 'auth', `Failed login attempt for: ${username}`);
     return;
