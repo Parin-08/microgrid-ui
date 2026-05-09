@@ -1530,8 +1530,7 @@ async function fetchRealAnomalies() {
   }
 }
 
-fetchRealAnomalies();
-setInterval(fetchRealAnomalies, 10000);
+document.addEventListener('DOMContentLoaded', () => { fetchRealAnomalies(); setInterval(fetchRealAnomalies, 10000); });
 
 // ── Real HiveMQ MQTT Connection ──────────────────────────────
 function initMQTT() {
