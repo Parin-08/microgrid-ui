@@ -363,10 +363,12 @@ async function startRealTimeData() {
   stopRealTimeData();
   
   async function fetchData() {
+    if (!STATE.currentUser || !STATE.currentUser.token) return;
     const data = await apiCall('/telemetry/live', {
   headers: { 'Authorization': `Bearer ${STATE.currentUser.token}` }
 });
-
+const anomalies = await apiCall('/anomalies/', {
+    headers: { 'Authorization': 'Bearer ' + STATE.currentUser.token }
     if (data) {
       Object.assign(STATE.data, data);
       updateLiveValues();
