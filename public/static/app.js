@@ -1512,6 +1512,15 @@ function initMQTT() {
     try {
       const data = JSON.parse(message.toString());
       console.log('MQTT message:', topic, data);
+      // Wire real data into app state
+      if (topic === 'microgrid/solar')    state.data.solar       = data.value ?? data.power ?? state.data.solar;
+      if (topic === 'microgrid/wind')     state.data.wind        = data.value ?? data.power ?? state.data.wind;
+      if (topic === 'microgrid/battery')  state.data.battery     = data.value ?? data.soc   ?? state.data.battery;
+      if (topic === 'microgrid/load')     state.data.load        = data.value ?? data.power ?? state.data.load;
+      if (topic === 'microgrid/grid')     { state.data.gridExport = data.export ?? state.data.gridExport; state.data.gridImport = data.import ?? state.data.gridImport; }
+      if (topic === 'microgrid/voltage')  state.data.voltage     = data.value ?? state.data.voltage;
+      if (topic === 'microgrid/frequency')state.data.frequency   = data.value ?? state.data.frequency;
+      if (topic === 'microgrid/status')   state.data.mode        = data.mode  ?? state.data.mode;
     } catch(e) {
       console.log('MQTT raw:', topic, message.toString());
     }
