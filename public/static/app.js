@@ -1522,16 +1522,13 @@ async function fetchRealAnomalies() {
     const data = await res.json();
     console.log('Real anomalies:', data);
     if (Array.isArray(data) && data.length > 0) {
-      if (typeof state !== 'undefined') {
-        state.data.anomalies = data;
-        state.data.threatScore = Math.min(100, data.length * 10);
-        // Force UI update
+      STATE.data.anomalies = data;
+        STATE.data.threatScore = Math.min(100, data.length * 10);
         const threatEl = document.getElementById('live-threat');
         const threatFill = document.getElementById('threat-fill');
-        const score = state.data.threatScore;
+        const score = STATE.data.threatScore;
         if (threatEl) threatEl.textContent = score.toFixed(0) + ' / 100';
         if (threatFill) threatFill.style.width = score + '%';
-      }
     }
   } catch(e) {
     console.error('Failed to fetch anomalies:', e);
