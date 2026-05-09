@@ -1494,3 +1494,32 @@ function renderUsersPage() {
 document.addEventListener('DOMContentLoaded', () => {
   renderLogin();
 });
+// ── Real HiveMQ MQTT Connection ──────────────────────────────
+function initMQTT() {
+  const client = mqtt.connect('wss://b796810c8d774e1d909a33856b193c2d.s1.eu.hivemq.cloud:8884/mqtt', {
+    username: 'The_Macros',
+    password: 'The_Macros1',
+    clientId: 'microgrid-ui-' + Math.random().toString(16).slice(2),
+    clean: true
+  });
+
+  client.on('connect', () => {
+    console.log('HiveMQ connected!');
+    client.subscribe('microgrid/#');
+  });
+
+  client.on('message', (topic, message) => {
+    try {
+      const data = JSON.parse(message.toString());
+      console.log('MQTT message:', topic, data);
+    } catch(e) {
+      console.log('MQTT raw:', topic, message.toString());
+    }
+  });
+
+  client.on('error', (err) => {
+    console.error('MQTT error:', err);
+  });
+}
+
+document.addEventListener('DOMContentLoaded', initMQTT);
