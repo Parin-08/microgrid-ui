@@ -369,6 +369,7 @@ async function startRealTimeData() {
 });
 const anomalies = await apiCall('/anomalies/', {
     headers: { 'Authorization': 'Bearer ' + STATE.currentUser.token }
+});
     if (data) {
       Object.assign(STATE.data, data);
       updateLiveValues();
