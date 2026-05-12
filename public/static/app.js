@@ -1555,7 +1555,10 @@ function initMQTT() {
     clientId: 'microgrid-ui-' + Math.random().toString(16).slice(2),
     clean: true
   });
-
+  client.on('message', (topic, message) => {
+  console.log('RAW MQTT:', topic, message.toString()); // ADD THIS
+  try {
+  
   client.on('message', (topic, message) => {
   try {
     const data = JSON.parse(message.toString());
