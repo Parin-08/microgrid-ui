@@ -705,29 +705,7 @@ function renderDashboard() {
       </div>`).join('')}
   </div>
 </div>
-        </div>
-        <div class="progress-bar-wrapper">
-          <div class="progress-label"><span>Solar Output</span><span>${d.solar.toFixed(1)} / 80 kW</span></div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill yellow" style="width:${(d.solar/80*100).toFixed(0)}%"></div></div>
-        </div>
-        <div class="progress-bar-wrapper">
-          <div class="progress-label"><span>Wind Output</span><span>${(d.wind || 12.3).toFixed(1)} / 25 kW</span></div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill cyan" style="width:${((d.wind || 12.3)/25*100).toFixed(0)}%"></div></div>
-        </div>
-        <div class="progress-bar-wrapper">
-          <div class="progress-label"><span>Load Utilization</span><span>${d.load.toFixed(1)} / 70 kW</span></div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill purple" style="width:${(d.load/70*100).toFixed(0)}%"></div></div>
-        </div>
-        <div class="progress-bar-wrapper">
-          <div class="progress-label"><span>Battery Capacity</span><span>${d.battery.toFixed(0)}%</span></div>
-          <div class="progress-bar-bg"><div class="progress-bar-fill green" style="width:${d.battery.toFixed(0)}%"></div></div>
-        </div>
-        <hr class="divider">
-        <div class="data-row"><span class="data-row-label">Temperature</span><span class="data-row-value" id="live-temp">${(d.temperature || 34.2).toFixed(1)} °C</span></div>
-        <div class="data-row"><span class="data-row-label">Control Mode</span><span class="data-row-value cyan">GRID-CONNECTED</span></div>
-        <div class="data-row"><span class="data-row-label">Uptime</span><span class="data-row-value green">99.8%</span></div>
-        <div class="data-row"><span class="data-row-label">Last Sync</span><span class="data-row-value">${now()}</span></div>
-      </div>
+       
     </div>
 
     <!-- Recent Alerts -->
