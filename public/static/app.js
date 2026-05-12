@@ -1556,13 +1556,9 @@ function initMQTT() {
     clean: true
   });
   client.on('message', (topic, message) => {
-  console.log('RAW MQTT:', topic, message.toString()); // ADD THIS
-  try {
-  
-  client.on('message', (topic, message) => {
+  console.log('MQTT IN:', topic, message.toString());
   try {
     const data = JSON.parse(message.toString());
-    console.log('MQTT message:', topic, data);
 
     if (topic === 'microgrid/solar_kw') {
       STATE.data.solar = data.value ?? STATE.data.solar;
@@ -1584,13 +1580,12 @@ function initMQTT() {
       STATE.history.grid.push(STATE.data.gridImport);
       if (STATE.history.grid.length > 20) STATE.history.grid.shift();
     }
-    if (topic === 'microgrid/grid_export_kw')    STATE.data.gridExport   = data.value ?? STATE.data.gridExport;
+    if (topic === 'microgrid/grid_export_kw')    STATE.data.gridExport    = data.value ?? STATE.data.gridExport;
     if (topic === 'microgrid/battery_action_kw') STATE.data.batteryAction = data.value ?? STATE.data.batteryAction;
-    if (topic === 'microgrid/temperature_c')     STATE.data.temperature  = data.value ?? STATE.data.temperature;
-    if (topic === 'microgrid/physical_alert')    STATE.data.alert        = data.value ?? STATE.data.alert;
-    if (topic === 'microgrid/hour')              STATE.data.hour         = data.value ?? STATE.data.hour;
+    if (topic === 'microgrid/temperature_c')     STATE.data.temperature   = data.value ?? STATE.data.temperature;
+    if (topic === 'microgrid/physical_alert')    STATE.data.alert         = data.value ?? STATE.data.alert;
+    if (topic === 'microgrid/hour')              STATE.data.hour          = data.value ?? STATE.data.hour;
 
-    // update UI every message
     updateLiveValues();
     updateLiveCharts();
 
