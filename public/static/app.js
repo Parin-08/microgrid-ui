@@ -1596,3 +1596,4 @@ function initMQTT() {
 }
 
 document.addEventListener('DOMContentLoaded', initMQTT);
+// force redeploy
