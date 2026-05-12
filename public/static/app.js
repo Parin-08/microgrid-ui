@@ -626,7 +626,7 @@ function renderDashboard() {
     </div>
 
     <!-- Row 3: Grid Power + Security + System Vitals -->
-    <div class="grid-3" style="margin-bottom:20px;">
+    <div class="grid-3" style="margin-bottom:20px;grid-template-columns:1fr 1fr 2fr;">
       <div class="card">
         <div class="card-header">
           <div class="card-title"><i class="fas fa-project-diagram icon"></i> Grid Power Flow</div>
