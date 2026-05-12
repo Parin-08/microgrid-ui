@@ -34,15 +34,16 @@ const STATE = {
   dataInterval: null,
   chartInstances: {},
   data: {
-    solar: 42.5, wind: 12.3, battery: 68, load: 38.7,
-    gridImport: 0, gridExport: 4.1, voltage: 230.4,
-    frequency: 50.01, temperature: 34.2, humidity: 62,
-    mode: 'grid-connected', securityLevel: 'normal',
-    threatScore: 18, encryptionStatus: true,
-    activeConnections: 4, failedLogins: 0,
-    mqttStatus: 'connected', tlsStatus: true,
-    anomalies: [], powerFlow: []
-  },
+  solar: 0, battery: 0, load: 0,
+  gridImport: 0, gridExport: 0,
+  temperature: 0, alert: 0, hour: 0,
+  batteryAction: 0,
+  mode: 'grid-connected', securityLevel: 'normal',
+  threatScore: 18, encryptionStatus: true,
+  activeConnections: 4, failedLogins: 0,
+  mqttStatus: 'connected', tlsStatus: true,
+  anomalies: [], powerFlow: []
+},
   history: { solar: [], load: [], battery: [], grid: [], threat: [] },
   loginAttempts: {},
   notifications: [],
@@ -471,39 +472,38 @@ function updateTopbarPills() {
 function updateLiveValues() {
   const d = STATE.data;
   const sets = {
-    'live-solar':    `${d.solar.toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-wind':     `${(d.wind || 12.3).toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-battery':  `${d.battery.toFixed(0)} <span class="kpi-unit">%</span>`,
-    'live-load':     `${d.load.toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-grid-exp': `${(d.gridExport || 0).toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-grid-imp': `${(d.gridImport || 0).toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-voltage':  `${d.voltage.toFixed(1)} <span class="kpi-unit">V</span>`,
-    'live-freq':     `${d.frequency.toFixed(2)} <span class="kpi-unit">Hz</span>`,
-    'live-temp':     `${(d.temperature || 34.2).toFixed(1)} <span class="kpi-unit">°C</span>`,
-    'live-threat':   `${(d.threatScore || 18).toFixed(0)} <span class="kpi-unit">/100</span>`,
+    'live-solar':    `${(d.solar||0).toFixed(1)} <span class="kpi-unit">kW</span>`,
+    'live-battery':  `${(d.battery||0).toFixed(1)} <span class="kpi-unit">kWh</span>`,
+    'live-load':     `${(d.load||0).toFixed(1)} <span class="kpi-unit">kW</span>`,
+    'live-grid-exp': `${(d.gridExport||0).toFixed(1)} <span class="kpi-unit">kW</span>`,
+    'live-grid-imp': `${(d.gridImport||0).toFixed(1)} <span class="kpi-unit">kW</span>`,
+    'live-temp':     `${(d.temperature||0).toFixed(1)} <span class="kpi-unit">°C</span>`,
+    'live-threat':   `${(d.threatScore||18).toFixed(0)} <span class="kpi-unit">/100</span>`,
   };
   Object.entries(sets).forEach(([id, val]) => {
     const el = document.getElementById(id);
     if (el) { el.innerHTML = val; el.classList.add('updating'); setTimeout(() => el.classList.remove('updating'), 500); }
   });
+
   // Battery bar
+  const battPct = Math.min(100, (d.battery / 10) * 100); // adjust scale if needed
   const fill = document.getElementById('battery-fill');
   if (fill) {
-    fill.style.width = `${d.battery.toFixed(0)}%`;
-    fill.className = `battery-fill ${d.battery >= 50 ? 'high' : d.battery >= 25 ? 'mid' : 'low'}`;
+    fill.style.width = `${battPct.toFixed(0)}%`;
+    fill.className = `battery-fill ${battPct >= 50 ? 'high' : battPct >= 25 ? 'mid' : 'low'}`;
   }
   const battText = document.getElementById('battery-bar-text');
-  if (battText) battText.textContent = `${d.battery.toFixed(0)}%`;
+  if (battText) battText.textContent = `${(d.battery||0).toFixed(1)} kWh`;
 
   // Threat bar
   const threatFill = document.getElementById('threat-fill');
-  if (threatFill) threatFill.style.width = `${(d.threatScore || 18)}%`;
+  if (threatFill) threatFill.style.width = `${(d.threatScore||18)}%`;
 
-  // Topo node values
-  const topoSolar = document.getElementById('topo-solar-val');   if(topoSolar) topoSolar.textContent = `${d.solar.toFixed(1)} kW`;
-  const topoBatt  = document.getElementById('topo-batt-val');    if(topoBatt)  topoBatt.textContent  = `${d.battery.toFixed(0)}%`;
-  const topoLoad  = document.getElementById('topo-load-val');    if(topoLoad)  topoLoad.textContent  = `${d.load.toFixed(1)} kW`;
-  const topoGrid  = document.getElementById('topo-grid-val');    if(topoGrid)  topoGrid.textContent  = `${(d.gridExport || 0).toFixed(1)} kW`;
+  // Topology
+  const topoSolar = document.getElementById('topo-solar-val'); if(topoSolar) topoSolar.textContent = `${(d.solar||0).toFixed(1)} kW`;
+  const topoBatt  = document.getElementById('topo-batt-val');  if(topoBatt)  topoBatt.textContent  = `${(d.battery||0).toFixed(1)} kWh`;
+  const topoLoad  = document.getElementById('topo-load-val');  if(topoLoad)  topoLoad.textContent  = `${(d.load||0).toFixed(1)} kW`;
+  const topoGrid  = document.getElementById('topo-grid-val');  if(topoGrid)  topoGrid.textContent  = `${(d.gridExport||0).toFixed(1)} kW`;
 }
 
 function updateLiveCharts() {
@@ -584,10 +584,10 @@ function renderDashboard() {
         <div class="kpi-trend ${d.battery > 50 ? 'up' : 'down'}"><i class="fas fa-arrow-${d.battery > 50 ? 'up':'down'}"></i> ${d.battery > 50 ? 'Charging' : 'Discharging'}</div>
       </div>
       <div class="kpi-card cyan">
-        <div class="kpi-icon cyan"><i class="fas fa-plug"></i></div>
-        <div class="kpi-value" id="live-load">${d.load.toFixed(1)} <span class="kpi-unit">kW</span></div>
-        <div class="kpi-label">Load Demand</div>
-        <div class="kpi-trend stable"><i class="fas fa-minus"></i> Nominal load</div>
+        <div class="kpi-icon cyan"><i class="fas fa-thermometer-half"></i></div>
+        <div class="kpi-value" id="live-temp">${(d.temperature||0).toFixed(1)} <span class="kpi-unit">°C</span></div>
+        <div class="kpi-label">Temperature</div>
+        <div class="kpi-trend stable"><i class="fas fa-minus"></i> Ambient</div>
       </div>
       <div class="kpi-card purple">
         <div class="kpi-icon purple"><i class="fas fa-exchange-alt"></i></div>
@@ -634,8 +634,9 @@ function renderDashboard() {
         <hr class="divider">
         <div class="data-row"><span class="data-row-label">Grid Import</span><span class="data-row-value red" id="live-grid-imp">${(d.gridImport || 0).toFixed(1)} kW</span></div>
         <div class="data-row"><span class="data-row-label">Grid Export</span><span class="data-row-value green">${(d.gridExport || 0).toFixed(1)} kW</span></div>
-        <div class="data-row"><span class="data-row-label">Voltage</span><span class="data-row-value" id="live-voltage">${d.voltage.toFixed(1)} V</span></div>
-        <div class="data-row"><span class="data-row-label">Frequency</span><span class="data-row-value" id="live-freq">${d.frequency.toFixed(2)} Hz</span></div>
+        <div class="data-row"><span class="data-row-label">Temperature</span><span class="data-row-value" id="live-temp">${(d.temperature||0).toFixed(1)} °C</span></div>
+
+        <div class="data-row"><span class="data-row-label">Physical Alert</span><span class="data-row-value ${d.alert > 0 ? 'red' : 'green'}">${d.alert > 0 ? '⚠ Active' : '✓ Normal'}</span></div>
       </div>
       <div class="card">
         <div class="card-header">
@@ -1561,26 +1562,26 @@ function initMQTT() {
   });
 
   client.on('message', (topic, message) => {
-    try {
-      const data = JSON.parse(message.toString());
-      console.log('MQTT message:', topic, data);
-      // Wire real data into app state
-      if (topic === 'microgrid/solar')    state.data.solar       = data.value ?? data.power ?? state.data.solar;
-      if (topic === 'microgrid/wind')     state.data.wind        = data.value ?? data.power ?? state.data.wind;
-      if (topic === 'microgrid/battery')  state.data.battery     = data.value ?? data.soc   ?? state.data.battery;
-      if (topic === 'microgrid/load')     state.data.load        = data.value ?? data.power ?? state.data.load;
-      if (topic === 'microgrid/grid')     { state.data.gridExport = data.export ?? state.data.gridExport; state.data.gridImport = data.import ?? state.data.gridImport; }
-      if (topic === 'microgrid/voltage')  state.data.voltage     = data.value ?? state.data.voltage;
-      if (topic === 'microgrid/frequency')state.data.frequency   = data.value ?? state.data.frequency;
-      if (topic === 'microgrid/status')   state.data.mode        = data.mode  ?? state.data.mode;
-    } catch(e) {
-      console.log('MQTT raw:', topic, message.toString());
-    }
-  });
+  try {
+    const data = JSON.parse(message.toString());
+    console.log('MQTT message:', topic, data);
 
-  client.on('error', (err) => {
-    console.error('MQTT error:', err);
-  });
+    if (topic === 'microgrid/solar_kw')          STATE.data.solar        = data.value ?? STATE.data.solar;
+    if (topic === 'microgrid/load_kw')           STATE.data.load         = data.value ?? STATE.data.load;
+    if (topic === 'microgrid/battery_soc_kwh')   STATE.data.battery      = data.value ?? STATE.data.battery;
+    if (topic === 'microgrid/battery_action_kw') STATE.data.batteryAction = data.value ?? STATE.data.batteryAction;
+    if (topic === 'microgrid/grid_import_kw')    STATE.data.gridImport   = data.value ?? STATE.data.gridImport;
+    if (topic === 'microgrid/grid_export_kw')    STATE.data.gridExport   = data.value ?? STATE.data.gridExport;
+    if (topic === 'microgrid/temperature_c')     STATE.data.temperature  = data.value ?? STATE.data.temperature;
+    if (topic === 'microgrid/physical_alert')    STATE.data.alert        = data.value ?? STATE.data.alert;
+    if (topic === 'microgrid/hour')              STATE.data.hour         = data.value ?? STATE.data.hour;
+
+    updateLiveValues();
+    updateLiveCharts();
+  } catch(e) {
+    console.log('MQTT raw:', topic, message.toString());
+  }
+});
 }
 
 document.addEventListener('DOMContentLoaded', initMQTT);
