@@ -250,7 +250,8 @@ async function handleLogin() {
   
   addLog('success', 'auth', `User "${username}" authenticated via backend`);
   renderApp();
-  startRealTimeData();
+initMQTT();
+startRealTimeData();
 }
 
 // ── Main App Shell ────────────────────────────────────────
@@ -1555,45 +1556,55 @@ function initMQTT() {
     clientId: 'microgrid-ui-' + Math.random().toString(16).slice(2),
     clean: true
   });
+
+  client.on('connect', () => {
+    console.log('MQTT Connected to HiveMQ!');
+    client.subscribe('microgrid/#');
+  });
+
+  client.on('error', (err) => {
+    console.error('MQTT Error:', err);
+  });
+
   client.on('message', (topic, message) => {
-  console.log('MQTT IN:', topic, message.toString());
-  try {
-    const data = JSON.parse(message.toString());
+    console.log('MQTT IN:', topic, message.toString());
+    try {
+      const data = JSON.parse(message.toString());
 
-    if (topic === 'microgrid/solar_kw') {
-      STATE.data.solar = data.value ?? STATE.data.solar;
-      STATE.history.solar.push(STATE.data.solar);
-      if (STATE.history.solar.length > 20) STATE.history.solar.shift();
-    }
-    if (topic === 'microgrid/load_kw') {
-      STATE.data.load = data.value ?? STATE.data.load;
-      STATE.history.load.push(STATE.data.load);
-      if (STATE.history.load.length > 20) STATE.history.load.shift();
-    }
-    if (topic === 'microgrid/battery_soc_kwh') {
-      STATE.data.battery = data.value ?? STATE.data.battery;
-      STATE.history.battery.push(STATE.data.battery);
-      if (STATE.history.battery.length > 20) STATE.history.battery.shift();
-    }
-    if (topic === 'microgrid/grid_import_kw') {
-      STATE.data.gridImport = data.value ?? STATE.data.gridImport;
-      STATE.history.grid.push(STATE.data.gridImport);
-      if (STATE.history.grid.length > 20) STATE.history.grid.shift();
-    }
-    if (topic === 'microgrid/grid_export_kw')    STATE.data.gridExport    = data.value ?? STATE.data.gridExport;
-    if (topic === 'microgrid/battery_action_kw') STATE.data.batteryAction = data.value ?? STATE.data.batteryAction;
-    if (topic === 'microgrid/temperature_c')     STATE.data.temperature   = data.value ?? STATE.data.temperature;
-    if (topic === 'microgrid/physical_alert')    STATE.data.alert         = data.value ?? STATE.data.alert;
-    if (topic === 'microgrid/hour')              STATE.data.hour          = data.value ?? STATE.data.hour;
+      if (topic === 'microgrid/solar_kw') {
+        STATE.data.solar = data.value ?? STATE.data.solar;
+        STATE.history.solar.push(STATE.data.solar);
+        if (STATE.history.solar.length > 20) STATE.history.solar.shift();
+      }
+      if (topic === 'microgrid/load_kw') {
+        STATE.data.load = data.value ?? STATE.data.load;
+        STATE.history.load.push(STATE.data.load);
+        if (STATE.history.load.length > 20) STATE.history.load.shift();
+      }
+      if (topic === 'microgrid/battery_soc_kwh') {
+        STATE.data.battery = data.value ?? STATE.data.battery;
+        STATE.history.battery.push(STATE.data.battery);
+        if (STATE.history.battery.length > 20) STATE.history.battery.shift();
+      }
+      if (topic === 'microgrid/grid_import_kw') {
+        STATE.data.gridImport = data.value ?? STATE.data.gridImport;
+        STATE.history.grid.push(STATE.data.gridImport);
+        if (STATE.history.grid.length > 20) STATE.history.grid.shift();
+      }
+      if (topic === 'microgrid/grid_export_kw')    STATE.data.gridExport    = data.value ?? STATE.data.gridExport;
+      if (topic === 'microgrid/battery_action_kw') STATE.data.batteryAction = data.value ?? STATE.data.batteryAction;
+      if (topic === 'microgrid/temperature_c')     STATE.data.temperature   = data.value ?? STATE.data.temperature;
+      if (topic === 'microgrid/physical_alert')    STATE.data.alert         = data.value ?? STATE.data.alert;
+      if (topic === 'microgrid/hour')              STATE.data.hour          = data.value ?? STATE.data.hour;
 
-    updateLiveValues();
-    updateLiveCharts();
+      updateLiveValues();
+      updateLiveCharts();
 
-  } catch(e) {
-    console.log('MQTT raw:', topic, message.toString());
-  }
-});
+    } catch(e) {
+      console.log('MQTT raw:', topic, message.toString());
+    }
+  });
 }
 
-document.addEventListener('DOMContentLoaded', initMQTT);
+
 // force redeploy
