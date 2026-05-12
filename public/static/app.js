@@ -660,7 +660,51 @@ function renderDashboard() {
       </div>
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fas fa-thermometer-half icon"></i> System Vitals</div>
+          <div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fas fa-radiation-alt icon"></i> Live Alerts</div>
+    <div class="status-indicator ${(d.threatScore||0) > 50 ? 'offline' : 'online'}" id="threat-status">
+      ${(d.threatScore||0) > 50 ? '⚠ THREAT' : '✓ SECURE'}
+    </div>
+  </div>
+  <div class="data-row">
+    <span class="data-row-label">Physical Alert</span>
+    <span class="data-row-value ${d.alert === 1 ? 'red' : 'green'}" id="live-physical-alert">
+      ${d.alert === 1 ? '🚨 ALERT' : '✅ Normal'}
+    </span>
+  </div>
+  <div class="data-row">
+    <span class="data-row-label">Attack Injected</span>
+    <span class="data-row-value ${d.attackInjected === 1 ? 'red' : 'green'}" id="live-attack-injected">
+      ${d.attackInjected === 1 ? '🔴 YES' : '🟢 NO'}
+    </span>
+  </div>
+  <div class="data-row">
+    <span class="data-row-label">Attack Type</span>
+    <span class="data-row-value red" id="live-attack-type">
+      ${d.attackType && d.attackType !== 'None' ? d.attackType : '—'}
+    </span>
+  </div>
+  <hr class="divider">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;display:flex;justify-content:space-between;">
+    <span>Threat Score</span><span id="live-threat">${(d.threatScore||0).toFixed(0)}/100</span>
+  </div>
+  <div class="threat-meter">
+    <div class="threat-fill" id="threat-fill" style="width:${d.threatScore||0}%"></div>
+  </div>
+  <hr class="divider">
+  <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">Recent Alerts</div>
+  <div style="max-height:160px;overflow-y:auto;">
+    ${STATE.alerts.slice(0,4).map(a => `
+      <div class="alert-item ${a.type}" style="margin-bottom:6px;padding:8px;">
+        <div class="alert-icon"><i class="fas ${a.type==='critical'?'fa-radiation-alt':a.type==='warning'?'fa-exclamation-triangle':'fa-info-circle'}"></i></div>
+        <div style="flex:1;">
+          <div class="alert-title" style="font-size:12px;">${a.title}</div>
+          <div class="alert-desc" style="font-size:11px;">${a.time}</div>
+        </div>
+      </div>`).join('')}
+  </div>
+</div>
         </div>
         <div class="progress-bar-wrapper">
           <div class="progress-label"><span>Solar Output</span><span>${d.solar.toFixed(1)} / 80 kW</span></div>
