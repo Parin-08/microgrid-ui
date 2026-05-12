@@ -1571,25 +1571,26 @@ function initMQTT() {
     try {
       const data = JSON.parse(message.toString());
 
-      if (topic === 'microgrid/solar_kw') {
-        STATE.data.solar = data.value ?? STATE.data.solar;
-        STATE.history.solar.push(STATE.data.solar);
-        if (STATE.history.solar.length > 20) STATE.history.solar.shift();
-      }
-      if (topic === 'microgrid/load_kw') {
-        STATE.data.load = data.value ?? STATE.data.load;
-        STATE.history.load.push(STATE.data.load);
-        if (STATE.history.load.length > 20) STATE.history.load.shift();
-      }
-      if (topic === 'microgrid/battery_soc_kwh') {
-        STATE.data.battery = data.value ?? STATE.data.battery;
-        STATE.history.battery.push(STATE.data.battery);
-        if (STATE.history.battery.length > 20) STATE.history.battery.shift();
-      }
-      if (topic === 'microgrid/grid_import_kw') {
-        STATE.data.gridImport = data.value ?? STATE.data.gridImport;
-        STATE.history.grid.push(STATE.data.gridImport);
-        if (STATE.history.grid.length > 20) STATE.history.grid.shift();
+      if (topic === 'microgrid/solar') {
+  STATE.data.solar = data.value ?? STATE.data.solar;
+  STATE.history.solar.push(STATE.data.solar);
+  if (STATE.history.solar.length > 20) STATE.history.solar.shift();
+}
+if (topic === 'microgrid/load') {
+  STATE.data.load = data.value ?? STATE.data.load;
+  STATE.history.load.push(STATE.data.load);
+  if (STATE.history.load.length > 20) STATE.history.load.shift();
+}
+if (topic === 'microgrid/battery') {
+  STATE.data.battery = data.value ?? STATE.data.battery;
+  STATE.history.battery.push(STATE.data.battery);
+  if (STATE.history.battery.length > 20) STATE.history.battery.shift();
+}
+if (topic === 'microgrid/grid') {
+  STATE.data.gridImport = data.value ?? STATE.data.gridImport;
+  STATE.history.grid.push(STATE.data.gridImport);
+  if (STATE.history.grid.length > 20) STATE.history.grid.shift();
+
       }
      if (topic === 'microgrid/solar')   STATE.data.solar = data.value ?? STATE.data.solar;
 if (topic === 'microgrid/load')    STATE.data.load = data.value ?? STATE.data.load;
