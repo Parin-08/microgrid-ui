@@ -1522,7 +1522,9 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Fetch Real Anomalies from Pranav's Backend ──────────────────
 async function fetchRealAnomalies() {
   try {
-    const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbiIsInJvbGUiOiJhZG1pbiIsImV4cCI6MTc3ODMxNDcyMH0.6af4oaM7ReCp1eawiThaDNYu7t0iHL9MadeKNivgPz4';
+    const token = localStorage.getItem('token'); // ← get from login
+    if (!token) return;
+    
     const res = await fetch('https://microgrid-final.onrender.com/anomalies/', {
       headers: { 'Authorization': 'Bearer ' + token }
     });
@@ -1530,12 +1532,12 @@ async function fetchRealAnomalies() {
     console.log('Real anomalies:', data);
     if (Array.isArray(data) && data.length > 0) {
       STATE.data.anomalies = data;
-        STATE.data.threatScore = Math.min(100, data.length * 10);
-        const threatEl = document.getElementById('live-threat');
-        const threatFill = document.getElementById('threat-fill');
-        const score = STATE.data.threatScore;
-        if (threatEl) threatEl.textContent = score.toFixed(0) + ' / 100';
-        if (threatFill) threatFill.style.width = score + '%';
+      STATE.data.threatScore = Math.min(100, data.length * 10);
+      const threatEl = document.getElementById('live-threat');
+      const threatFill = document.getElementById('threat-fill');
+      const score = STATE.data.threatScore;
+      if (threatEl) threatEl.textContent = score.toFixed(0) + ' / 100';
+      if (threatFill) threatFill.style.width = score + '%';
     }
   } catch(e) {
     console.error('Failed to fetch anomalies:', e);
