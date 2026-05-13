@@ -1605,12 +1605,12 @@ function initMQTT() {
   });
 
   client.on('connect', () => {
-    console.log('MQTT Connected to HiveMQ!');
+    console.log('HiveMQ connected!');
     client.subscribe('microgrid/#');
   });
 
   client.on('error', (err) => {
-    console.error('MQTT Error:', err);
+    console.error('MQTT error:', err);
   });
 
   client.on('message', (topic, message) => {
@@ -1619,32 +1619,47 @@ function initMQTT() {
       const data = JSON.parse(message.toString());
 
       if (topic === 'microgrid/solar') {
-  STATE.data.solar = data.value ?? STATE.data.solar;
-  STATE.history.solar.push(STATE.data.solar);
-  if (STATE.history.solar.length > 20) STATE.history.solar.shift();
-}
-if (topic === 'microgrid/load') {
-  STATE.data.load = data.value ?? STATE.data.load;
-  STATE.history.load.push(STATE.data.load);
-  if (STATE.history.load.length > 20) STATE.history.load.shift();
-}
-if (topic === 'microgrid/battery') {
-  STATE.data.battery = data.value ?? STATE.data.battery;
-  STATE.history.battery.push(STATE.data.battery);
-  if (STATE.history.battery.length > 20) STATE.history.battery.shift();
-}
-if (topic === 'microgrid/grid') {
-  STATE.data.gridImport = data.value ?? STATE.data.gridImport;
-  STATE.history.grid.push(STATE.data.gridImport);
-  if (STATE.history.grid.length > 20) STATE.history.grid.shift();
-
+        STATE.data.solar = data.value ?? STATE.data.solar;
+        STATE.history.solar.push(STATE.data.solar);
+        if (STATE.history.solar.length > 20) STATE.history.solar.shift();
       }
-     if (topic === 'microgrid/solar')   STATE.data.solar = data.value ?? STATE.data.solar;
-if (topic === 'microgrid/load')    STATE.data.load = data.value ?? STATE.data.load;
-if (topic === 'microgrid/battery') STATE.data.battery = data.value ?? STATE.data.battery;
-if (topic === 'microgrid/grid')    STATE.data.gridImport = data.value ?? STATE.data.gridImport;
-if (topic === 'microgrid/grid_export')   STATE.data.gridExport = data.value ?? STATE.data.gridExport;
-if (topic === 'microgrid/temperature')   STATE.data.temperature = data.value ?? STATE.data.temperature;
+      if (topic === 'microgrid/load') {
+        STATE.data.load = data.value ?? STATE.data.load;
+        STATE.history.load.push(STATE.data.load);
+        if (STATE.history.load.length > 20) STATE.history.load.shift();
+      }
+      if (topic === 'microgrid/battery') {
+        STATE.data.battery = data.value ?? STATE.data.battery;
+        STATE.history.battery.push(STATE.data.battery);
+        if (STATE.history.battery.length > 20) STATE.history.battery.shift();
+      }
+      if (topic === 'microgrid/grid') {
+        STATE.data.gridImport = data.value ?? STATE.data.gridImport;
+        STATE.history.grid.push(STATE.data.gridImport);
+        if (STATE.history.grid.length > 20) STATE.history.grid.shift();
+      }
+      if (topic === 'microgrid/grid_export') {
+        STATE.data.gridExport = data.value ?? STATE.data.gridExport;
+      }
+      if (topic === 'microgrid/temperature') {
+        STATE.data.temperature = data.value ?? STATE.data.temperature;
+        STATE.history.temperature.push(STATE.data.temperature);
+        if (STATE.history.temperature.length > 20) STATE.history.temperature.shift();
+      }
+      if (topic === 'microgrid/security/alert') {
+        STATE.data.alert = data.value ?? STATE.data.alert;
+        STATE.history.alert.push(STATE.data.alert);
+        if (STATE.history.alert.length > 20) STATE.history.alert.shift();
+      }
+      if (topic === 'microgrid/security/attack') {
+        STATE.data.attackInjected = data.value ?? STATE.data.attackInjected;
+      }
+      if (topic === 'microgrid/security/attack_type') {
+        STATE.data.attackType = data.value ?? STATE.data.attackType;
+      }
+      if (topic === 'microgrid/hour') {
+        STATE.data.hour = data.value ?? STATE.data.hour;
+      }
 
       updateLiveValues();
       updateLiveCharts();
@@ -1655,5 +1670,4 @@ if (topic === 'microgrid/temperature')   STATE.data.temperature = data.value ?? 
   });
 }
 
-
-// force redeploy
+document.addEventListener('DOMContentLoaded', initMQTT);
