@@ -1722,7 +1722,7 @@ client.on('message', (topic, message) => {
         if (val === 1.0 && wasNormal) {
           const now = Date.now();
           const lastAlert = STATE.data._lastAlertTime || 0;
-          if (now - lastAlert > 30000) {  // 30 second cooldown
+          if (now - lastAlert > 60000) {
             STATE.data._lastAlertTime = now;
             const attackType = STATE.data.attackType || 'UNKNOWN';
             const hour = STATE.data.hour;
@@ -1745,9 +1745,24 @@ client.on('message', (topic, message) => {
           STATE.data.threatScore = 18;
           STATE.data.attackType = 'None';
           STATE.data.attackInjected = 0;
+          STATE.data._lastAlertTime = 0;
           STATE.history.threat.push(18);
           if (STATE.history.threat.length > 20) STATE.history.threat.shift();
           addLog('success', 'security', '[IDS] Physical alert cleared — system returning to normal');
+
+          // Force visual reset immediately
+          const threatStatus = document.getElementById('threat-status');
+          if (threatStatus) { threatStatus.textContent = '✓ SECURE'; threatStatus.className = 'status-indicator online'; }
+          const physAlert = document.getElementById('live-physical-alert');
+          if (physAlert) { physAlert.innerHTML = '✅ Normal'; physAlert.className = 'data-row-value green'; }
+          const attackInj = document.getElementById('live-attack-injected');
+          if (attackInj) { attackInj.innerHTML = '🟢 NO'; attackInj.className = 'data-row-value green'; }
+          const attackTypeEl = document.getElementById('live-attack-type');
+          if (attackTypeEl) { attackTypeEl.textContent = '—'; }
+          const threatFill = document.getElementById('threat-fill');
+          if (threatFill) { threatFill.style.width = '18%'; }
+          const threatEl = document.getElementById('live-threat');
+          if (threatEl) { threatEl.textContent = '18 / 100'; }
         }
         break;
       
