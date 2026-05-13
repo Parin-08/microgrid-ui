@@ -660,7 +660,7 @@ function renderDashboard() {
       </div>
       <div class="card">
         <div class="card-header">
-        <div class="card" style="grid-column: span 4; height: 100%;">
+        <div class="card" style="grid-column: span 10; height: 100%;">
   <div class="card-header">
     <div class="card-title"><i class="fas fa-radiation-alt icon"></i> Live Alerts</div>
     <div class="status-indicator ${(d.threatScore||0) > 50 ? 'offline' : 'online'}" id="threat-status">
