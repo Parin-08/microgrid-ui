@@ -1732,16 +1732,13 @@ client.on('message', (topic, message) => {
 });
 async function ingestTelemetryToBackend(rowData) {
   try {
-    const token = STATE.currentUser?.token;
-    if (!token) return;
-
     await fetch('https://microgrid-final.onrender.com/telemetry/ingest', {
       method: 'POST',
       headers: {
-        'Authorization': 'Bearer ' + token,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
+        device_id:         'inverter_01',
         solar_kw:          rowData.solar,
         load_kw:           rowData.load,
         battery_soc_kwh:   rowData.battery,
@@ -1756,7 +1753,7 @@ async function ingestTelemetryToBackend(rowData) {
       })
     });
   } catch(e) {
-    // silent fail — don't block UI
+    // CORS or network error — silently ignore
   }
 }
 
