@@ -44,7 +44,7 @@ const STATE = {
   mqttStatus: 'connected', tlsStatus: true,
   anomalies: [], powerFlow: []
 },
-  history: { solar: [], load: [], battery: [], grid: [], threat: [] },
+  history: { solar: [], load: [], battery: [], grid: [], threat: [],temperature: [], alert: [] },
   loginAttempts: {},
   notifications: [],
 };
@@ -598,41 +598,53 @@ function renderDashboard() {
       </div>
     </div>
 
-    <!-- Row 2: 4 Live Charts -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+
+    <!-- Row 2: 6 Live Charts -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-solar-panel icon"></i> Solar Generation</div>
       <div class="status-indicator online">LIVE</div>
-  </div>
-  <div class="chart-wrapper"><canvas id="chart-solar"></canvas></div>
-</div>
-<div class="card">
-  <div class="card-header">
-    <div class="card-title"><i class="fas fa-plug icon"></i> Load Demand</div>
-    <div class="status-indicator online">LIVE</div>
-  </div>
-  <div class="chart-wrapper"><canvas id="chart-load"></canvas></div>
-</div>
-<div class="card">
-  <div class="card-header">
-    <div class="card-title"><i class="fas fa-battery-half icon"></i> Battery State of Charge</div>
-    <div class="status-indicator online">LIVE</div>
-  </div>
-  <div class="chart-wrapper"><canvas id="chart-battery"></canvas></div>
-</div>
-<div class="card">
-  <div class="card-header">
-    <div class="card-title"><i class="fas fa-project-diagram icon"></i> Grid Import / Export</div>
-    <div class="status-indicator online">LIVE</div>
-  </div>
-  <div class="chart-wrapper"><canvas id="chart-grid"></canvas></div>
-</div>
-        </div>
-        <div class="chart-wrapper sm"><canvas id="chart-battery"></canvas></div>
-        <hr class="divider">
-        <div class="data-row"><span class="data-row-label">State of Charge</span><span class="data-row-value green">${d.battery.toFixed(0)}%</span></div>
-        <div class="data-row"><span class="data-row-label">Capacity</span><span class="data-row-value">200 kWh</span></div>
-        <div class="data-row"><span class="data-row-label">Status</span><span class="data-row-value cyan">${d.battery > 50 ? 'Charging' : 'Discharging'}</span></div>
-      </div>
     </div>
+    <div class="chart-wrapper"><canvas id="chart-solar"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-plug icon"></i> Load Demand</div>
+      <div class="status-indicator online">LIVE</div>
+    </div>
+    <div class="chart-wrapper"><canvas id="chart-load"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-battery-half icon"></i> Battery State of Charge</div>
+      <div class="status-indicator online">LIVE</div>
+    </div>
+    <div class="chart-wrapper"><canvas id="chart-battery"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-project-diagram icon"></i> Grid Import / Export</div>
+      <div class="status-indicator online">LIVE</div>
+    </div>
+    <div class="chart-wrapper"><canvas id="chart-grid"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-thermometer-half icon"></i> Temperature</div>
+      <div class="status-indicator online">LIVE</div>
+    </div>
+    <div class="chart-wrapper"><canvas id="chart-temp"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-exclamation-triangle icon"></i> Physical Alert Timeline</div>
+      <div class="status-indicator online">LIVE</div>
+    </div>
+    <div class="chart-wrapper"><canvas id="chart-alert"></canvas></div>
+  </div>
+</div>
+    
 
     <!-- Row 3: Grid Power + Security + System Vitals -->
    <div class="grid-3" style="margin-bottom:20px;grid-template-columns:1fr 1fr 1fr;">
@@ -640,7 +652,7 @@ function renderDashboard() {
         <div class="card-header">
           <div class="card-title"><i class="fas fa-project-diagram icon"></i> Grid Power Flow</div>
         </div>
-        <div class="chart-wrapper sm"><canvas id="chart-grid"></canvas></div>
+        <div class="chart-wrapper sm"><canvas id="chart-grid-sm"></canvas></div>
         <hr class="divider">
         <div class="data-row"><span class="data-row-label">Grid Import</span><span class="data-row-value red" id="live-grid-imp">${(d.gridImport || 0).toFixed(1)} kW</span></div>
         <div class="data-row"><span class="data-row-label">Grid Export</span><span class="data-row-value green">${(d.gridExport || 0).toFixed(1)} kW</span></div>
@@ -741,6 +753,15 @@ function renderDashboard() {
 ]);
 makeChart('chart-load', 'line', CHART_LABELS, [
   { label:'Load kW', data: STATE.history.load, borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
+]);
+makeChart('chart-temp', 'line', CHART_LABELS, [
+  { label:'Temp °C', data: STATE.history.temperature, borderColor:'#ff6b35', backgroundColor:'rgba(255,107,53,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
+]);
+makeChart('chart-alert', 'bar', CHART_LABELS, [
+  { label:'Alert', data: STATE.history.alert, backgroundColor:'rgba(255,51,102,0.6)', borderColor:'#ff3366', borderWidth:1, borderRadius:3 }
+]);
+makeChart('chart-grid-sm', 'bar', CHART_LABELS, [
+  { label:'Net Grid', data: STATE.history.grid, backgroundColor: STATE.history.grid.map(v => v >= 0 ? 'rgba(0,255,136,0.5)' : 'rgba(255,51,102,0.5)'), borderRadius:3 }
 ]);
   }, 50);
 }
