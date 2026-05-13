@@ -626,7 +626,7 @@ function renderDashboard() {
     </div>
 
     <!-- Row 3: Grid Power + Security + System Vitals -->
-    <div class="grid-3" style="margin-bottom:20px;grid-template-columns:1fr 1fr 2fr;">
+   <div class="grid-3" style="margin-bottom:20px;grid-template-columns:1fr 1fr 1fr;">
       <div class="card">
         <div class="card-header">
           <div class="card-title"><i class="fas fa-project-diagram icon"></i> Grid Power Flow</div>
@@ -660,7 +660,7 @@ function renderDashboard() {
       </div>
       <div class="card">
         <div class="card-header">
-        <div class="card" style="grid-column: span 10; height: 100%;">
+        <div class="card" style="height: 100%;">
   <div class="card-header">
     <div class="card-title"><i class="fas fa-radiation-alt icon"></i> Live Alerts</div>
     <div class="status-indicator ${(d.threatScore||0) > 50 ? 'offline' : 'online'}" id="threat-status">
