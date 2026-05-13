@@ -1714,17 +1714,15 @@ client.on('message', (topic, message) => {
 
       case 'microgrid/security/alert': {
         const wasNormal = (STATE.data.alert !== 1.0);
+        const wasAlert  = (STATE.data.alert === 1.0);
         STATE.data.alert = val;
         STATE.history.alert.push(val);
         if (STATE.history.alert.length > 20) STATE.history.alert.shift();
 
         if (val === 1.0 && wasNormal) {
-          const attackType = STATE.data.attackType || 'LOAD_SWITCHING_ATTACK';
+          const attackType = STATE.data.attackType || 'UNKNOWN';
           const hour = STATE.data.hour;
-
-          // ★ Write anomaly to backend DB
           createAnomalyInBackend(attackType, hour);
-
           addAlert('critical',
             `⚠ ATTACK DETECTED: ${attackType}`,
             `physical_alert triggered at Hour ${hour}. Grid under attack!`
@@ -1732,12 +1730,20 @@ client.on('message', (topic, message) => {
           addLog('critical', 'security',
             `[IDS] ${attackType} detected at hour ${hour} — physical_alert = 1`
           );
-          STATE.data.threatScore = Math.min(100, (STATE.data.threatScore || 0) + 25);
+          STATE.data.threatScore = 100;
           STATE.history.threat.push(STATE.data.threatScore);
           if (STATE.history.threat.length > 20) STATE.history.threat.shift();
           updateNotifBadge();
         }
+
+        if (val === 0.0 && wasAlert) {
+          STATE.data.threatScore = 18;
+          STATE.history.threat.push(18);
+          if (STATE.history.threat.length > 20) STATE.history.threat.shift();
+          addLog('success', 'security', '[IDS] Physical alert cleared — system returning to normal');
+        }
         break;
+      
       }
     }
 
