@@ -598,24 +598,33 @@ function renderDashboard() {
       </div>
     </div>
 
-    <!-- Row 2: Charts + Battery -->
-    <div class="grid-2-1" style="margin-bottom:20px;">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-chart-line icon"></i> Power Generation vs Load</div>
-          <div class="status-indicator online"><i class="fas fa-circle" style="font-size:8px;"></i> LIVE</div>
-        </div>
-        <div class="chart-wrapper"><canvas id="chart-power"></canvas></div>
-      </div>
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-battery-half icon"></i> Battery Status</div>
-        </div>
-        <div style="margin-bottom:16px;">
-          <div class="battery-visual">
-            <div class="battery-fill ${d.battery >= 50 ? 'high' : d.battery >= 25 ? 'mid' : 'low'}" id="battery-fill" style="width:${d.battery.toFixed(0)}%"></div>
-            <div class="battery-text" id="battery-bar-text">${d.battery.toFixed(0)}%</div>
-          </div>
+    <!-- Row 2: 4 Live Charts -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:20px;">
+      <div class="status-indicator online">LIVE</div>
+  </div>
+  <div class="chart-wrapper"><canvas id="chart-solar"></canvas></div>
+</div>
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fas fa-plug icon"></i> Load Demand</div>
+    <div class="status-indicator online">LIVE</div>
+  </div>
+  <div class="chart-wrapper"><canvas id="chart-load"></canvas></div>
+</div>
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fas fa-battery-half icon"></i> Battery State of Charge</div>
+    <div class="status-indicator online">LIVE</div>
+  </div>
+  <div class="chart-wrapper"><canvas id="chart-battery"></canvas></div>
+</div>
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fas fa-project-diagram icon"></i> Grid Import / Export</div>
+    <div class="status-indicator online">LIVE</div>
+  </div>
+  <div class="chart-wrapper"><canvas id="chart-grid"></canvas></div>
+</div>
         </div>
         <div class="chart-wrapper sm"><canvas id="chart-battery"></canvas></div>
         <hr class="divider">
@@ -727,6 +736,12 @@ function renderDashboard() {
     makeChart('chart-threat', 'line', CHART_LABELS, [
       { label:'Threat', data: STATE.history.threat, borderColor:'#ff3366', backgroundColor:'rgba(255,51,102,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
     ], { yScale: { min: 0, max: 100 } });
+    makeChart('chart-solar', 'line', CHART_LABELS, [
+  { label:'Solar kW', data: STATE.history.solar, borderColor:'#ffcc00', backgroundColor:'rgba(255,204,0,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
+]);
+makeChart('chart-load', 'line', CHART_LABELS, [
+  { label:'Load kW', data: STATE.history.load, borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
+]);
   }, 50);
 }
 
