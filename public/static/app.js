@@ -1720,24 +1720,31 @@ client.on('message', (topic, message) => {
         if (STATE.history.alert.length > 20) STATE.history.alert.shift();
 
         if (val === 1.0 && wasNormal) {
-          const attackType = STATE.data.attackType || 'UNKNOWN';
-          const hour = STATE.data.hour;
-          createAnomalyInBackend(attackType, hour);
-          addAlert('critical',
-            `⚠ ATTACK DETECTED: ${attackType}`,
-            `physical_alert triggered at Hour ${hour}. Grid under attack!`
-          );
-          addLog('critical', 'security',
-            `[IDS] ${attackType} detected at hour ${hour} — physical_alert = 1`
-          );
-          STATE.data.threatScore = 100;
-          STATE.history.threat.push(STATE.data.threatScore);
-          if (STATE.history.threat.length > 20) STATE.history.threat.shift();
-          updateNotifBadge();
+          const now = Date.now();
+          const lastAlert = STATE.data._lastAlertTime || 0;
+          if (now - lastAlert > 30000) {  // 30 second cooldown
+            STATE.data._lastAlertTime = now;
+            const attackType = STATE.data.attackType || 'UNKNOWN';
+            const hour = STATE.data.hour;
+            createAnomalyInBackend(attackType, hour);
+            addAlert('critical',
+              `⚠ ATTACK DETECTED: ${attackType}`,
+              `physical_alert triggered at Hour ${hour}. Grid under attack!`
+            );
+            addLog('critical', 'security',
+              `[IDS] ${attackType} detected at hour ${hour} — physical_alert = 1`
+            );
+            STATE.data.threatScore = 100;
+            STATE.history.threat.push(100);
+            if (STATE.history.threat.length > 20) STATE.history.threat.shift();
+            updateNotifBadge();
+          }
         }
 
         if (val === 0.0 && wasAlert) {
           STATE.data.threatScore = 18;
+          STATE.data.attackType = 'None';
+          STATE.data.attackInjected = 0;
           STATE.history.threat.push(18);
           if (STATE.history.threat.length > 20) STATE.history.threat.shift();
           addLog('success', 'security', '[IDS] Physical alert cleared — system returning to normal');
