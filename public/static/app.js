@@ -692,18 +692,7 @@ function renderDashboard() {
   <div class="threat-meter">
     <div class="threat-fill" id="threat-fill" style="width:${d.threatScore||0}%"></div>
   </div>
-  <hr class="divider">
-  <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-weight:600;">Recent Alerts</div>
-  <div style="max-height:160px;overflow-y:auto;">
-    ${STATE.alerts.slice(0,4).map(a => `
-      <div class="alert-item ${a.type}" style="margin-bottom:6px;padding:8px;">
-        <div class="alert-icon"><i class="fas ${a.type==='critical'?'fa-radiation-alt':a.type==='warning'?'fa-exclamation-triangle':'fa-info-circle'}"></i></div>
-        <div style="flex:1;">
-          <div class="alert-title" style="font-size:12px;">${a.title}</div>
-          <div class="alert-desc" style="font-size:11px;">${a.time}</div>
-        </div>
-      </div>`).join('')}
-  </div>
+ 
 </div>
        
     </div>
