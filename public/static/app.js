@@ -63,11 +63,13 @@ const ROLE_PERMISSIONS = {
 
 // Prepopulate history arrays
 for (let i = 0; i < 20; i++) {
-  STATE.history.solar.push(+(20 + Math.random() * 35).toFixed(1));
-  STATE.history.load.push(+(30 + Math.random() * 20).toFixed(1));
-  STATE.history.battery.push(+(55 + Math.random() * 30).toFixed(1));
-  STATE.history.grid.push(+(Math.random() * 10 - 5).toFixed(1));
-  STATE.history.threat.push(+(5 + Math.random() * 30).toFixed(0));
+  STATE.history.solar.push(0);
+  STATE.history.load.push(0);
+  STATE.history.battery.push(0);
+  STATE.history.grid.push(0);
+  STATE.history.threat.push(0);
+  STATE.history.temperature.push(0);
+  STATE.history.alert.push(0);
 }
 
 // Prepopulate logs
@@ -1571,7 +1573,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // ── Fetch Real Anomalies from Pranav's Backend ──────────────────
 async function fetchRealAnomalies() {
   try {
-    const token = localStorage.getItem('token'); // ← get from login
+    const token = STATE.currentUser?.token;
     if (!token) return;
     
     const res = await fetch('https://microgrid-final.onrender.com/anomalies/', {
@@ -1669,5 +1671,3 @@ function initMQTT() {
     }
   });
 }
-
-document.addEventListener('DOMContentLoaded', initMQTT);
