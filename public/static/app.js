@@ -1724,7 +1724,6 @@ client.on('message', (topic, message) => {
     // Update all live UI after every message
     updateLiveValues();
     updateLiveCharts();
-    computeLocalAnomalies();
 
   } catch(e) {
     console.log('MQTT parse error:', topic, message.toString(), e);
