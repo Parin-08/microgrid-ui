@@ -1621,7 +1621,8 @@ function initMQTT() {
       const data = JSON.parse(message.toString());
 
       if (topic === 'microgrid/solar') {
-        STATE.data.solar = data.value ?? STATE.data.solar;
+        const val = parseFloat(data.value); 
+        STATE.data.solar = val;
         STATE.history.solar.push(STATE.data.solar);
         if (STATE.history.solar.length > 20) STATE.history.solar.shift();
       }
