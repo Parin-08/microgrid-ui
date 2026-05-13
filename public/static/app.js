@@ -510,22 +510,36 @@ function updateLiveValues() {
 }
 
 function updateLiveCharts() {
-  const labels = Array.from({length: 20}, (_, i) => `T-${20-i}`);
-  const update = (id, datasets) => {
-    const c = STATE.chartInstances[id];
+  const ci = STATE.chartInstances;
+  
+  const push = (id, arr) => {
+    const c = ci[id];
     if (!c) return;
-    c.data.labels = labels;
-    datasets.forEach((ds, i) => { if (c.data.datasets[i]) c.data.datasets[i].data = ds; });
+    c.data.datasets[0].data = [...arr];
+    c.data.labels = arr.map((_, i) => `T-${arr.length - 1 - i}`);
     c.update('none');
   };
-  update('chart-power', [STATE.history.solar, STATE.history.load]);
-  update('chart-battery', [STATE.history.battery]);
-  update('chart-grid', [STATE.history.grid]);
-  update('chart-threat', [STATE.history.threat]);
-  update('chart-energy-solar', [STATE.history.solar]);
-  update('chart-energy-load', [STATE.history.load]);
-}
 
+  push('chart-solar',       STATE.history.solar);
+  push('chart-load',        STATE.history.load);
+  push('chart-battery',     STATE.history.battery);
+  push('chart-temp',        STATE.history.temperature);
+  push('chart-alert',       STATE.history.alert);
+  push('chart-threat',      STATE.history.threat);
+  push('chart-energy-solar',STATE.history.solar);
+  push('chart-energy-load', STATE.history.load);
+
+  // Grid charts need color refresh too
+  ['chart-grid','chart-grid-sm'].forEach(id => {
+    const c = ci[id];
+    if (!c) return;
+    c.data.datasets[0].data = [...STATE.history.grid];
+    c.data.datasets[0].backgroundColor = STATE.history.grid.map(
+      v => v >= 0 ? 'rgba(0,255,136,0.5)' : 'rgba(255,51,102,0.5)'
+    );
+    c.update('none');
+  });
+}
 // ── Chart Factory ─────────────────────────────────────────
 function makeChart(id, type, labels, datasets, opts = {}) {
   const canvas = document.getElementById(id);
@@ -1615,60 +1629,163 @@ function initMQTT() {
     console.error('MQTT error:', err);
   });
 
-  client.on('message', (topic, message) => {
-    console.log('MQTT IN:', topic, message.toString());
-    try {
-      const data = JSON.parse(message.toString());
+  client.on('error', (err) => {
+  console.error('MQTT error:', err);
+});
 
-      if (topic === 'microgrid/solar') {
-        const val = parseFloat(data.value); 
+client.on('message', (topic, message) => {
+  console.log('MQTT IN:', topic, message.toString());
+  try {
+    const data = JSON.parse(message.toString());
+    const val = parseFloat(data.value);
+
+    switch(topic) {
+      case 'microgrid/solar':
         STATE.data.solar = val;
-        STATE.history.solar.push(STATE.data.solar);
+        STATE.history.solar.push(val);
         if (STATE.history.solar.length > 20) STATE.history.solar.shift();
-      }
-      if (topic === 'microgrid/load') {
-        STATE.data.load = data.value ?? STATE.data.load;
-        STATE.history.load.push(STATE.data.load);
+        break;
+
+      case 'microgrid/load':
+        STATE.data.load = val;
+        STATE.history.load.push(val);
         if (STATE.history.load.length > 20) STATE.history.load.shift();
-      }
-      if (topic === 'microgrid/battery') {
-        STATE.data.battery = data.value ?? STATE.data.battery;
-        STATE.history.battery.push(STATE.data.battery);
+        break;
+
+      case 'microgrid/battery':
+        STATE.data.battery = val;
+        STATE.history.battery.push(val);
         if (STATE.history.battery.length > 20) STATE.history.battery.shift();
-      }
-      if (topic === 'microgrid/grid') {
-        STATE.data.gridImport = data.value ?? STATE.data.gridImport;
-        STATE.history.grid.push(STATE.data.gridImport);
+        break;
+
+      case 'microgrid/grid':
+        STATE.data.gridImport = val;
+        STATE.history.grid.push(val);
         if (STATE.history.grid.length > 20) STATE.history.grid.shift();
-      }
-      if (topic === 'microgrid/grid_export') {
-        STATE.data.gridExport = data.value ?? STATE.data.gridExport;
-      }
-      if (topic === 'microgrid/temperature') {
-        STATE.data.temperature = data.value ?? STATE.data.temperature;
-        STATE.history.temperature.push(STATE.data.temperature);
+        break;
+
+      case 'microgrid/grid_export':
+        STATE.data.gridExport = val;
+        break;
+
+      case 'microgrid/temperature':
+        STATE.data.temperature = val;
+        STATE.history.temperature.push(val);
         if (STATE.history.temperature.length > 20) STATE.history.temperature.shift();
-      }
-      if (topic === 'microgrid/security/alert') {
-        STATE.data.alert = data.value ?? STATE.data.alert;
-        STATE.history.alert.push(STATE.data.alert);
+        break;
+
+      case 'microgrid/hour':
+        STATE.data.hour = val;
+        // ★ Full row received — ingest to backend DB
+        ingestTelemetryToBackend(STATE.data);
+        break;
+
+      case 'microgrid/battery_action_kw':
+        STATE.data.batteryAction = val;
+        break;
+
+      case 'microgrid/security/attack_type':
+        STATE.data.attackType = data.value; // string, not float
+        break;
+
+      case 'microgrid/security/attack':
+        STATE.data.attackInjected = val;
+        break;
+
+      case 'microgrid/security/alert': {
+        const wasNormal = (STATE.data.alert !== 1.0);
+        STATE.data.alert = val;
+        STATE.history.alert.push(val);
         if (STATE.history.alert.length > 20) STATE.history.alert.shift();
-      }
-      if (topic === 'microgrid/security/attack') {
-        STATE.data.attackInjected = data.value ?? STATE.data.attackInjected;
-      }
-      if (topic === 'microgrid/security/attack_type') {
-        STATE.data.attackType = data.value ?? STATE.data.attackType;
-      }
-      if (topic === 'microgrid/hour') {
-        STATE.data.hour = data.value ?? STATE.data.hour;
-      }
 
-      updateLiveValues();
-      updateLiveCharts();
+        if (val === 1.0 && wasNormal) {
+          const attackType = STATE.data.attackType || 'LOAD_SWITCHING_ATTACK';
+          const hour = STATE.data.hour;
 
-    } catch(e) {
-      console.log('MQTT raw:', topic, message.toString());
+          // ★ Write anomaly to backend DB
+          createAnomalyInBackend(attackType, hour);
+
+          addAlert('critical',
+            `⚠ ATTACK DETECTED: ${attackType}`,
+            `physical_alert triggered at Hour ${hour}. Grid under attack!`
+          );
+          addLog('critical', 'security',
+            `[IDS] ${attackType} detected at hour ${hour} — physical_alert = 1`
+          );
+          STATE.data.threatScore = Math.min(100, (STATE.data.threatScore || 0) + 25);
+          STATE.history.threat.push(STATE.data.threatScore);
+          if (STATE.history.threat.length > 20) STATE.history.threat.shift();
+          updateNotifBadge();
+        }
+        break;
+      }
     }
-  });
+
+    // Update all live UI after every message
+    updateLiveValues();
+    updateLiveCharts();
+    computeLocalAnomalies();
+
+  } catch(e) {
+    console.log('MQTT parse error:', topic, message.toString(), e);
+  }
+});
+async function ingestTelemetryToBackend(rowData) {
+  try {
+    const token = STATE.currentUser?.token;
+    if (!token) return;
+
+    await fetch('https://microgrid-final.onrender.com/telemetry/ingest', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        solar_kw:          rowData.solar,
+        load_kw:           rowData.load,
+        battery_soc_kwh:   rowData.battery,
+        battery_action_kw: rowData.batteryAction || 0,
+        grid_import_kw:    rowData.gridImport,
+        grid_export_kw:    rowData.gridExport || 0,
+        temperature_c:     rowData.temperature,
+        physical_alert:    rowData.alert,
+        attack_injected:   rowData.attackInjected || 0,
+        attack_type:       rowData.attackType || 'NONE',
+        hour:              rowData.hour
+      })
+    });
+  } catch(e) {
+    // silent fail — don't block UI
+  }
+}
+
+async function createAnomalyInBackend(attackType, hour) {
+  try {
+    const token = STATE.currentUser?.token;
+    if (!token) return;
+
+    const res = await fetch('https://microgrid-final.onrender.com/anomalies/', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        anomaly_type:   attackType,
+        severity:       'critical',
+        description:    `${attackType} detected at hour ${hour}`,
+        hour:           hour,
+        solar_kw:       STATE.data.solar,
+        load_kw:        STATE.data.load,
+        grid_import_kw: STATE.data.gridImport,
+        temperature_c:  STATE.data.temperature
+      })
+    });
+    const result = await res.json();
+    console.log('Anomaly created in backend:', result);
+  } catch(e) {
+    console.error('Failed to create anomaly:', e);
+  }
+}
 }
