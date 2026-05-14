@@ -1698,7 +1698,6 @@ function initMQTT() {
 
         case 'microgrid/hour':
           STATE.data.hour = val;
-          try { ingestTelemetryToBackend(STATE.data); } catch(e) {}
           break;
 
         case 'microgrid/battery_action_kw':
