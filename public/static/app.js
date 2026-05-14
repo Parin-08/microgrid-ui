@@ -1698,7 +1698,7 @@ function initMQTT() {
 
         case 'microgrid/hour':
           STATE.data.hour = val;
-          ingestTelemetryToBackend(STATE.data);
+          try { ingestTelemetryToBackend(STATE.data); } catch(e) {}
           break;
 
         case 'microgrid/battery_action_kw':
@@ -1792,31 +1792,28 @@ function initMQTT() {
     }
   });
 
-  async function ingestTelemetryToBackend(rowData) {
-    try {
-      await fetch('https://microgrid-final.onrender.com/telemetry/ingest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          device_id:         'inverter_01',
-          solar_kw:          rowData.solar,
-          load_kw:           rowData.load,
-          battery_soc_kwh:   rowData.battery,
-          battery_action_kw: rowData.batteryAction || 0,
-          grid_import_kw:    rowData.gridImport,
-          grid_export_kw:    rowData.gridExport || 0,
-          temperature_c:     rowData.temperature,
-          physical_alert:    rowData.alert,
-          attack_injected:   rowData.attackInjected || 0,
-          attack_type:       rowData.attackType || 'NONE',
-          hour:              rowData.hour
-        })
-      });
-    } catch(e) {
-      // CORS or network error — silently ignore
-    }
-  }
-
+ async function ingestTelemetryToBackend(rowData) {
+  try {
+    await fetch('https://microgrid-final.onrender.com/telemetry/ingest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        device_id:         'inverter_01',
+        solar_kw:          rowData.solar,
+        load_kw:           rowData.load,
+        battery_soc_kwh:   rowData.battery,
+        battery_action_kw: rowData.batteryAction || 0,
+        grid_import_kw:    rowData.gridImport,
+        grid_export_kw:    rowData.gridExport || 0,
+        temperature_c:     rowData.temperature,
+        physical_alert:    rowData.alert,
+        attack_injected:   rowData.attackInjected || 0,
+        attack_type:       rowData.attackType || 'NONE',
+        hour:              rowData.hour
+      })
+    }).catch(() => {});
+  } catch(e) {}
+}
   async function createAnomalyInBackend(attackType, hour) {
     try {
       const token = STATE.currentUser?.token;
