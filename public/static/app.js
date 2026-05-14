@@ -489,7 +489,7 @@ function updateLiveValues() {
   });
 
   // Battery bar
-  const battPct = Math.min(100, (d.battery / 10) * 100); // adjust scale if needed
+  const battPct = Math.min(100, (d.battery / 10) * 100);
   const fill = document.getElementById('battery-fill');
   if (fill) {
     fill.style.width = `${battPct.toFixed(0)}%`;
@@ -502,36 +502,39 @@ function updateLiveValues() {
   const threatFill = document.getElementById('threat-fill');
   if (threatFill) threatFill.style.width = `${(d.threatScore||18)}%`;
 
-
+  // Attack injected — tied directly to physical alert
   const attackInj = document.getElementById('live-attack-injected');
   if (attackInj) {
-    attackInj.innerHTML = STATE.data.attackInjected === 1 ? '🔴 YES' : '🟢 NO';
-    attackInj.className = `data-row-value ${STATE.data.attackInjected === 1 ? 'red' : 'green'}`;
+    attackInj.innerHTML = STATE.data.alert === 1 ? '🔴 YES' : '🟢 NO';
+    attackInj.className = `data-row-value ${STATE.data.alert === 1 ? 'red' : 'green'}`;
   }
 
+  // Attack type
   const attackType = document.getElementById('live-attack-type');
   if (attackType) attackType.textContent =
     (STATE.data.alert === 1 && STATE.data.attackType && STATE.data.attackType !== 'None')
       ? STATE.data.attackType : '—';
 
-  const physAlert = document.getElementById('live-physical-alert');
-  if (physAlert) {
-    physAlert.innerHTML = STATE.data.alert === 1 ? '🚨 ALERT' : '✅ Normal';
-    physAlert.className = `data-row-value ${STATE.data.alert === 1 ? 'red' : 'green'}`;
+  // Physical alert
+  const physAlertEl = document.getElementById('live-physical-alert');
+  if (physAlertEl) {
+    physAlertEl.innerHTML = STATE.data.alert === 1 ? '🚨 ALERT' : '✅ Normal';
+    physAlertEl.className = `data-row-value ${STATE.data.alert === 1 ? 'red' : 'green'}`;
   }
 
+  // Threat status badge
   const threatStatus = document.getElementById('threat-status');
   if (threatStatus) {
-    const secure = STATE.data.alert !== 1;
-    threatStatus.textContent = secure ? '✓ SECURE' : '⚠ THREAT';
-    threatStatus.className = `status-indicator ${secure ? 'online' : 'offline'}`;
+    threatStatus.textContent = STATE.data.alert === 1 ? '⚠ THREAT' : '✓ SECURE';
+    threatStatus.className = `status-indicator ${STATE.data.alert === 1 ? 'offline' : 'online'}`;
   }
+
+  // Topology
   const topoSolar = document.getElementById('topo-solar-val'); if(topoSolar) topoSolar.textContent = `${(d.solar||0).toFixed(1)} kW`;
   const topoBatt  = document.getElementById('topo-batt-val');  if(topoBatt)  topoBatt.textContent  = `${(d.battery||0).toFixed(1)} kWh`;
   const topoLoad  = document.getElementById('topo-load-val');  if(topoLoad)  topoLoad.textContent  = `${(d.load||0).toFixed(1)} kW`;
   const topoGrid  = document.getElementById('topo-grid-val');  if(topoGrid)  topoGrid.textContent  = `${(d.gridExport||0).toFixed(1)} kW`;
 }
-
 function updateLiveCharts() {
   const ci = STATE.chartInstances;
   
