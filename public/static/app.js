@@ -502,11 +502,6 @@ function updateLiveValues() {
   const threatFill = document.getElementById('threat-fill');
   if (threatFill) threatFill.style.width = `${(d.threatScore||18)}%`;
 
-// Live attack status
-  const physAlert = document.getElementById('live-physical-alert');
-  if (physAlert) physAlert.innerHTML = STATE.data.alert === 1
-    ? '🚨 ALERT' : '✅ Normal';
-  if (physAlert) physAlert.className = `data-row-value ${STATE.data.alert === 1 ? 'red' : 'green'}`;
 
   const attackInj = document.getElementById('live-attack-injected');
   if (attackInj) {
