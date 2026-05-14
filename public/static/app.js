@@ -369,11 +369,11 @@ async function startRealTimeData() {
   async function fetchData() {
     if (!STATE.currentUser || !STATE.currentUser.token) return;
     const data = await apiCall('/telemetry/live', {
-  headers: { 'Authorization': `Bearer ${STATE.currentUser.token}` }
-});
-const anomalies = await apiCall('/anomalies/', {
-    headers: { 'Authorization': 'Bearer ' + STATE.currentUser.token }
-});
+      headers: { 'Authorization': `Bearer ${STATE.currentUser.token}` }
+    });
+    const anomalies = await apiCall('/anomalies/', {
+      headers: { 'Authorization': 'Bearer ' + STATE.currentUser.token }
+    });
     if (data) {
       Object.assign(STATE.data, data);
       updateLiveValues();
@@ -385,7 +385,6 @@ const anomalies = await apiCall('/anomalies/', {
   await fetchData();
   STATE.dataInterval = setInterval(fetchData, 2000);
 }
-
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('collapsed');
 }
