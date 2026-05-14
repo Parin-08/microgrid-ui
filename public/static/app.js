@@ -1652,187 +1652,193 @@ function initMQTT() {
     console.error('MQTT error:', err);
   });
 
-  client.on('error', (err) => {
-  console.error('MQTT error:', err);
-});
+  client.on('message', (topic, message) => {
+    console.log('MQTT IN:', topic, message.toString());
+    try {
+      const data = JSON.parse(message.toString());
+      const val = parseFloat(data.value);
 
-client.on('message', (topic, message) => {
-  console.log('MQTT IN:', topic, message.toString());
-  try {
-    const data = JSON.parse(message.toString());
-    const val = parseFloat(data.value);
+      switch(topic) {
+        case 'microgrid/solar':
+          STATE.data.solar = val;
+          STATE.history.solar.push(val);
+          if (STATE.history.solar.length > 20) STATE.history.solar.shift();
+          break;
 
-    switch(topic) {
-      case 'microgrid/solar':
-        STATE.data.solar = val;
-        STATE.history.solar.push(val);
-        if (STATE.history.solar.length > 20) STATE.history.solar.shift();
-        break;
+        case 'microgrid/load':
+          STATE.data.load = val;
+          STATE.history.load.push(val);
+          if (STATE.history.load.length > 20) STATE.history.load.shift();
+          break;
 
-      case 'microgrid/load':
-        STATE.data.load = val;
-        STATE.history.load.push(val);
-        if (STATE.history.load.length > 20) STATE.history.load.shift();
-        break;
+        case 'microgrid/battery':
+          STATE.data.battery = val;
+          STATE.history.battery.push(val);
+          if (STATE.history.battery.length > 20) STATE.history.battery.shift();
+          break;
 
-      case 'microgrid/battery':
-        STATE.data.battery = val;
-        STATE.history.battery.push(val);
-        if (STATE.history.battery.length > 20) STATE.history.battery.shift();
-        break;
+        case 'microgrid/grid':
+          STATE.data.gridImport = val;
+          STATE.history.grid.push(val);
+          if (STATE.history.grid.length > 20) STATE.history.grid.shift();
+          break;
 
-      case 'microgrid/grid':
-        STATE.data.gridImport = val;
-        STATE.history.grid.push(val);
-        if (STATE.history.grid.length > 20) STATE.history.grid.shift();
-        break;
+        case 'microgrid/grid_export':
+          STATE.data.gridExport = val;
+          break;
 
-      case 'microgrid/grid_export':
-        STATE.data.gridExport = val;
-        break;
+        case 'microgrid/temperature':
+          STATE.data.temperature = val;
+          STATE.history.temperature.push(val);
+          if (STATE.history.temperature.length > 20) STATE.history.temperature.shift();
+          break;
 
-      case 'microgrid/temperature':
-        STATE.data.temperature = val;
-        STATE.history.temperature.push(val);
-        if (STATE.history.temperature.length > 20) STATE.history.temperature.shift();
-        break;
+        case 'microgrid/hour':
+          STATE.data.hour = val;
+          ingestTelemetryToBackend(STATE.data);
+          break;
 
-      case 'microgrid/hour':
-        STATE.data.hour = val;
-        // ★ Full row received — ingest to backend DB
-        ingestTelemetryToBackend(STATE.data);
-        break;
+        case 'microgrid/battery_action_kw':
+          STATE.data.batteryAction = val;
+          break;
 
-      case 'microgrid/battery_action_kw':
-        STATE.data.batteryAction = val;
-        break;
+        case 'microgrid/security/attack_type':
+          STATE.data.attackType = data.value;
+          break;
 
-      case 'microgrid/security/attack_type':
-        STATE.data.attackType = data.value; // string, not float
-        break;
+        case 'microgrid/security/attack':
+          STATE.data.attackInjected = val;
+          break;
 
-      case 'microgrid/security/attack':
-        STATE.data.attackInjected = val;
-        break;
+        case 'microgrid/security/alert': {
+          const wasNormal = (STATE.data.alert !== 1.0);
+          const wasAlert  = (STATE.data.alert === 1.0);
+          STATE.data.alert = val;
+          STATE.history.alert.push(val);
+          if (STATE.history.alert.length > 20) STATE.history.alert.shift();
 
-      case 'microgrid/security/alert': {
-        const wasNormal = (STATE.data.alert !== 1.0);
-        const wasAlert  = (STATE.data.alert === 1.0);
-        STATE.data.alert = val;
-        STATE.history.alert.push(val);
-        if (STATE.history.alert.length > 20) STATE.history.alert.shift();
+          if (val === 1.0 && wasNormal) {
+            const now = Date.now();
+            const lastAlert = STATE.data._lastAlertTime || 0;
+            if (now - lastAlert > 60000) {
+              STATE.data._lastAlertTime = now;
+              const attackType = STATE.data.attackType || 'UNKNOWN';
+              const hour = STATE.data.hour;
+              createAnomalyInBackend(attackType, hour);
+              addAlert('critical',
+                `⚠ ATTACK DETECTED: ${attackType}`,
+                `physical_alert triggered at Hour ${hour}. Grid under attack!`
+              );
+              addLog('critical', 'security',
+                `[IDS] ${attackType} detected at hour ${hour} — physical_alert = 1`
+              );
+              STATE.data.threatScore = 100;
+              STATE.data.attackInjected = 1;
+              STATE.history.threat.push(100);
+              if (STATE.history.threat.length > 20) STATE.history.threat.shift();
+              updateNotifBadge();
 
-        if (val === 1.0 && wasNormal) {
-          const now = Date.now();
-          const lastAlert = STATE.data._lastAlertTime || 0;
-          if (now - lastAlert > 60000) {
-            STATE.data._lastAlertTime = now;
-            const attackType = STATE.data.attackType || 'UNKNOWN';
-            const hour = STATE.data.hour;
-            createAnomalyInBackend(attackType, hour);
-            addAlert('critical',
-              `⚠ ATTACK DETECTED: ${attackType}`,
-              `physical_alert triggered at Hour ${hour}. Grid under attack!`
-            );
-            addLog('critical', 'security',
-              `[IDS] ${attackType} detected at hour ${hour} — physical_alert = 1`
-            );
-            STATE.data.threatScore = 100;
-            STATE.history.threat.push(100);
-            if (STATE.history.threat.length > 20) STATE.history.threat.shift();
-            updateNotifBadge();
+              // Force visual update for attack injected
+              const threatStatus = document.getElementById('threat-status');
+              if (threatStatus) { threatStatus.textContent = '⚠ THREAT'; threatStatus.className = 'status-indicator offline'; }
+              const physAlertEl = document.getElementById('live-physical-alert');
+              if (physAlertEl) { physAlertEl.innerHTML = '🚨 ALERT'; physAlertEl.className = 'data-row-value red'; }
+              const attackInj = document.getElementById('live-attack-injected');
+              if (attackInj) { attackInj.innerHTML = '🔴 YES'; attackInj.className = 'data-row-value red'; }
+              const attackTypeEl = document.getElementById('live-attack-type');
+              if (attackTypeEl) { attackTypeEl.textContent = attackType; }
+              const threatFill = document.getElementById('threat-fill');
+              if (threatFill) { threatFill.style.width = '100%'; }
+              const threatEl = document.getElementById('live-threat');
+              if (threatEl) { threatEl.textContent = '100 / 100'; }
+            }
           }
-        }
 
-        if (val === 0.0 && wasAlert) {
-          STATE.data.threatScore = 18;
-          STATE.data.attackType = 'None';
-          STATE.data.attackInjected = 0;
-          STATE.data._lastAlertTime = 0;
-          STATE.history.threat.push(18);
-          if (STATE.history.threat.length > 20) STATE.history.threat.shift();
-          addLog('success', 'security', '[IDS] Physical alert cleared — system returning to normal');
+          if (val === 0.0 && wasAlert) {
+            STATE.data.threatScore = 18;
+            STATE.data.attackType = 'None';
+            STATE.data.attackInjected = 0;
+            STATE.data._lastAlertTime = 0;
+            STATE.history.threat.push(18);
+            if (STATE.history.threat.length > 20) STATE.history.threat.shift();
+            addLog('success', 'security', '[IDS] Physical alert cleared — system returning to normal');
 
-          // Force visual reset immediately
-          const threatStatus = document.getElementById('threat-status');
-          if (threatStatus) { threatStatus.textContent = '✓ SECURE'; threatStatus.className = 'status-indicator online'; }
-          const physAlert = document.getElementById('live-physical-alert');
-          if (physAlert) { physAlert.innerHTML = '✅ Normal'; physAlert.className = 'data-row-value green'; }
-          const attackInj = document.getElementById('live-attack-injected');
-          if (attackInj) { attackInj.innerHTML = '🟢 NO'; attackInj.className = 'data-row-value green'; }
-          const attackTypeEl = document.getElementById('live-attack-type');
-          if (attackTypeEl) { attackTypeEl.textContent = '—'; }
-          const threatFill = document.getElementById('threat-fill');
-          if (threatFill) { threatFill.style.width = '18%'; }
-          const threatEl = document.getElementById('live-threat');
-          if (threatEl) { threatEl.textContent = '18 / 100'; }
+            // Force visual reset immediately
+            const threatStatus = document.getElementById('threat-status');
+            if (threatStatus) { threatStatus.textContent = '✓ SECURE'; threatStatus.className = 'status-indicator online'; }
+            const physAlertEl = document.getElementById('live-physical-alert');
+            if (physAlertEl) { physAlertEl.innerHTML = '✅ Normal'; physAlertEl.className = 'data-row-value green'; }
+            const attackInj = document.getElementById('live-attack-injected');
+            if (attackInj) { attackInj.innerHTML = '🟢 NO'; attackInj.className = 'data-row-value green'; }
+            const attackTypeEl = document.getElementById('live-attack-type');
+            if (attackTypeEl) { attackTypeEl.textContent = '—'; }
+            const threatFill = document.getElementById('threat-fill');
+            if (threatFill) { threatFill.style.width = '18%'; }
+            const threatEl = document.getElementById('live-threat');
+            if (threatEl) { threatEl.textContent = '18 / 100'; }
+          }
+          break;
         }
-        break;
-      
       }
+
+      updateLiveValues();
+      updateLiveCharts();
+
+    } catch(e) {
+      console.log('MQTT parse error:', topic, message.toString(), e);
     }
+  });
 
-    // Update all live UI after every message
-    updateLiveValues();
-    updateLiveCharts();
-
-  } catch(e) {
-    console.log('MQTT parse error:', topic, message.toString(), e);
+  async function ingestTelemetryToBackend(rowData) {
+    try {
+      await fetch('https://microgrid-final.onrender.com/telemetry/ingest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          device_id:         'inverter_01',
+          solar_kw:          rowData.solar,
+          load_kw:           rowData.load,
+          battery_soc_kwh:   rowData.battery,
+          battery_action_kw: rowData.batteryAction || 0,
+          grid_import_kw:    rowData.gridImport,
+          grid_export_kw:    rowData.gridExport || 0,
+          temperature_c:     rowData.temperature,
+          physical_alert:    rowData.alert,
+          attack_injected:   rowData.attackInjected || 0,
+          attack_type:       rowData.attackType || 'NONE',
+          hour:              rowData.hour
+        })
+      });
+    } catch(e) {
+      // CORS or network error — silently ignore
+    }
   }
-});
-async function ingestTelemetryToBackend(rowData) {
-  try {
-    await fetch('https://microgrid-final.onrender.com/telemetry/ingest', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        device_id:         'inverter_01',
-        solar_kw:          rowData.solar,
-        load_kw:           rowData.load,
-        battery_soc_kwh:   rowData.battery,
-        battery_action_kw: rowData.batteryAction || 0,
-        grid_import_kw:    rowData.gridImport,
-        grid_export_kw:    rowData.gridExport || 0,
-        temperature_c:     rowData.temperature,
-        physical_alert:    rowData.alert,
-        attack_injected:   rowData.attackInjected || 0,
-        attack_type:       rowData.attackType || 'NONE',
-        hour:              rowData.hour
-      })
-    });
-  } catch(e) {
-    // CORS or network error — silently ignore
-  }
-}
 
-async function createAnomalyInBackend(attackType, hour) {
-  try {
-    const token = STATE.currentUser?.token;
-    if (!token) return;
-
-    const res = await fetch('https://microgrid-final.onrender.com/anomalies/', {
-      method: 'POST',
-      headers: {
-        'Authorization': 'Bearer ' + token,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        anomaly_type:   attackType,
-        severity:       'critical',
-        description:    `${attackType} detected at hour ${hour}`,
-        hour:           hour,
-        solar_kw:       STATE.data.solar,
-        load_kw:        STATE.data.load,
-        grid_import_kw: STATE.data.gridImport,
-        temperature_c:  STATE.data.temperature
-      })
-    });
-    const result = await res.json();
-    console.log('Anomaly created in backend:', result);
-  } catch(e) {
-    console.error('Failed to create anomaly:', e);
+  async function createAnomalyInBackend(attackType, hour) {
+    try {
+      const token = STATE.currentUser?.token;
+      if (!token) return;
+      const res = await fetch('https://microgrid-final.onrender.com/anomalies/', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          anomaly_type:   attackType,
+          severity:       'critical',
+          description:    `${attackType} detected at hour ${hour}`,
+          hour:           hour,
+          solar_kw:       STATE.data.solar,
+          load_kw:        STATE.data.load,
+          grid_import_kw: STATE.data.gridImport,
+          temperature_c:  STATE.data.temperature
+        })
+      });
+      const result = await res.json();
+      console.log('Anomaly created in backend:', result);
+    } catch(e) {
+      console.error('Failed to create anomaly:', e);
+    }
   }
-}
 }
