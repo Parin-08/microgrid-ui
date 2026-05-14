@@ -1639,7 +1639,7 @@ document.addEventListener('DOMContentLoaded', () => { fetchRealAnomalies(); setI
 
 // ── Real HiveMQ MQTT Connection ──────────────────────────────
 function initMQTT() {
-  const client = mqtt.connect('wss://b796810c8d774e1d909a33856b193c2d.s1.eu.hivemq.cloud:8884/mqtt', {
+  const client = mqtt.connect('wss://b796810c8d774e1d909a33856b193c2d.s1.eu.hivemq.cloud:8884', {
     username: 'The_Macros',
     password: 'The_Macros1',
     clientId: 'microgrid-ui-' + Math.random().toString(16).slice(2),
