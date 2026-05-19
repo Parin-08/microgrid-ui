@@ -608,6 +608,7 @@ function makeChart(id, type, labels, datasets, opts = {}) {
 
 // ── DASHBOARD PAGE ────────────────────────────────────────
 function renderDashboard() {
+  const HOURS24 = ['Hr 0','Hr 1','Hr 2','Hr 3','Hr 4','Hr 5','Hr 6','Hr 7','Hr 8','Hr 9','Hr 10','Hr 11','Hr 12','Hr 13','Hr 14','Hr 15','Hr 16','Hr 17','Hr 18','Hr 19','Hr 20','Hr 21','Hr 22','Hr 23'];
   const d = STATE.data;
   const el = document.getElementById('page-dashboard');
   if (!el) return;
@@ -789,41 +790,41 @@ function renderDashboard() {
 
   // Initialize charts
   setTimeout(() => {
-   makeChart('chart-power', 'line', [], [
-  { label:'Solar', data: [], borderColor:'#ffcc00', backgroundColor:'rgba(255,204,0,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 },
-  { label:'Load',  data: [], borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
+   makeChart('chart-power', 'line',HOURS24,[  
+  { label:'Solar', data:new Array(24).fill(0), borderColor:'#ffcc00', backgroundColor:'rgba(255,204,0,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 },
+  { label:'Load',  data:new Array(24).fill(0), borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
 ], { legend: true });
 
-makeChart('chart-solar', 'line', [], [
-  { label:'Solar kW', data: [], borderColor:'#ffcc00', backgroundColor:'rgba(255,204,0,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
+makeChart('chart-solar', 'line',HOURS24,[ 
+  { label:'Solar kW', data: new Array(24).fill(0), borderColor:'#ffcc00', backgroundColor:'rgba(255,204,0,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
 ], { yScale: { min: 0, max: 12 } });
 
-makeChart('chart-load', 'line', [], [
-  { label:'Load kW', data: [], borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
+makeChart('chart-load', 'line',HOURS24,[ 
+  { label:'Load kW', data: new Array(24).fill(0), borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
 ], { yScale: { min: 0, max: 12 } });
 
-makeChart('chart-battery', 'line', [], [
-  { label:'SOC kWh', data: [], borderColor:'#00ff88', backgroundColor:'rgba(0,255,136,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
+makeChart('chart-battery', 'line',HOURS24,[ 
+  { label:'SOC kWh', data: new Array(24).fill(0), borderColor:'#00ff88', backgroundColor:'rgba(0,255,136,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
 ], { yScale: { min: 0, max: 20 } });
 
-makeChart('chart-temp', 'line', [], [
-  { label:'Temp °C', data: [], borderColor:'#ff6b35', backgroundColor:'rgba(255,107,53,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
+makeChart('chart-temp', 'line',HOURS24,[ 
+  { label:'Temp °C', data: new Array(24).fill(21), borderColor:'#ff6b35', backgroundColor:'rgba(255,107,53,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
 ], { yScale: { min: 20, max: 45 } });
 
-makeChart('chart-alert', 'bar', [], [
-  { label:'Alert', data: [], backgroundColor:'rgba(255,51,102,0.6)', borderColor:'#ff3366', borderWidth:1, borderRadius:3 }
+makeChart('chart-alert', 'bar',HOURS24,[ 
+  { label:'Alert', data: new Array(24).fill(0), backgroundColor:'rgba(255,51,102,0.6)', borderColor:'#ff3366', borderWidth:1, borderRadius:3 }
 ], { yScale: { min: 0, max: 1 } });
 
-makeChart('chart-grid', 'bar', [], [
-  { label:'Grid kW', data: [], backgroundColor: [], borderRadius:3 }
+makeChart('chart-grid', 'bar',HOURS24,[ 
+  { label:'Grid kW', data: new Array(24).fill(0), backgroundColor: [], borderRadius:3 }
 ]);
 
-makeChart('chart-grid-sm', 'bar', [], [
-  { label:'Grid kW', data: [], backgroundColor: [], borderRadius:3 }
+makeChart('chart-grid-sm', 'bar',HOURS24,[ 
+  { label:'Grid kW', data: new Array(24).fill(0), backgroundColor: [], borderRadius:3 }
 ]);
 
-makeChart('chart-threat', 'line', [], [
-  { label:'Threat', data: [], borderColor:'#ff3366', backgroundColor:'rgba(255,51,102,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
+makeChart('chart-threat', 'line',HOURS24,[ 
+  { label:'Threat', data: new Array(24).fill(0), borderColor:'#ff3366', backgroundColor:'rgba(255,51,102,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
 ], { yScale: { min: 0, max: 100 } });
   }, 50);
 }
