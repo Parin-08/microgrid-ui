@@ -173,7 +173,7 @@ function renderLogin() {
     </div>
   </div>
       <div class="login-logo">GRID CONTROL SYSTEM v3.2</div>
-      <div class="login-title">CyberSecure<br>C.Y.V.O.L.T</div>
+      <div class="login-title"><br>CYVOLT</div>
       <div class="login-subtitle">Secure access— TLS 1.3 encrypted</div>
 
       <div class="input-group">
