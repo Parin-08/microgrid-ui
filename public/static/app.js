@@ -47,6 +47,13 @@ const STATE = {
   history: { solar: [], load: [], battery: [], grid: [], threat: [],temperature: [], alert: [] },
   loginAttempts: {},
   notifications: [],
+   solarHours:   [],
+  loadHours:    [],
+  batteryHours: [],
+  gridHours:    [],
+  tempHours:    [],
+  alertHours:   [],
+  threatHours:  [],
 };
 
 const USERS = {
@@ -536,32 +543,43 @@ function updateLiveValues() {
 }
 function updateLiveCharts() {
   const ci = STATE.chartInstances;
-  
-  const push = (id, arr) => {
+  const h  = STATE.history;
+
+  const push = (id, arr, hours) => {
     const c = ci[id];
     if (!c) return;
     c.data.datasets[0].data = [...arr];
-    c.data.labels = arr.map((_, i) => `T-${arr.length - 1 - i}`);
+    c.data.labels = (hours && hours.length === arr.length)
+      ? hours.map(hr => `Hr ${hr}`)
+      : arr.map((_, i) => `Hr ${i}`);
+    if (!c.options.scales) c.options.scales = {};
+    if (!c.options.scales.x) c.options.scales.x = {};
+    c.options.scales.x.ticks = { maxTicksLimit: 12, maxRotation: 0 };
     c.update('none');
   };
 
-  push('chart-solar',       STATE.history.solar);
-  push('chart-load',        STATE.history.load);
-  push('chart-battery',     STATE.history.battery);
-  push('chart-temp',        STATE.history.temperature);
-  push('chart-alert',       STATE.history.alert);
-  push('chart-threat',      STATE.history.threat);
-  push('chart-energy-solar',STATE.history.solar);
-  push('chart-energy-load', STATE.history.load);
+  push('chart-solar',        h.solar,       h.solarHours);
+  push('chart-load',         h.load,        h.loadHours);
+  push('chart-battery',      h.battery,     h.batteryHours);
+  push('chart-temp',         h.temperature, h.tempHours);
+  push('chart-alert',        h.alert,       h.alertHours);
+  push('chart-threat',       h.threat,      h.threatHours);
+  push('chart-energy-solar', h.solar,       h.solarHours);
+  push('chart-energy-load',  h.load,        h.loadHours);
 
-  // Grid charts need color refresh too
-  ['chart-grid','chart-grid-sm'].forEach(id => {
+  ['chart-grid', 'chart-grid-sm'].forEach(id => {
     const c = ci[id];
     if (!c) return;
-    c.data.datasets[0].data = [...STATE.history.grid];
-    c.data.datasets[0].backgroundColor = STATE.history.grid.map(
+    c.data.datasets[0].data = [...h.grid];
+    c.data.labels = (h.gridHours && h.gridHours.length === h.grid.length)
+      ? h.gridHours.map(hr => `Hr ${hr}`)
+      : h.grid.map((_, i) => `Hr ${i}`);
+    c.data.datasets[0].backgroundColor = h.grid.map(
       v => v >= 0 ? 'rgba(0,255,136,0.5)' : 'rgba(255,51,102,0.5)'
     );
+    if (!c.options.scales) c.options.scales = {};
+    if (!c.options.scales.x) c.options.scales.x = {};
+    c.options.scales.x.ticks = { maxTicksLimit: 12, maxRotation: 0 };
     c.update('none');
   });
 }
@@ -1676,39 +1694,44 @@ function initMQTT() {
 
       switch(topic) {
         case 'microgrid/solar':
-          STATE.data.solar = val;
-          STATE.history.solar.push(val);
-          if (STATE.history.solar.length > 20) STATE.history.solar.shift();
-          break;
+  STATE.data.solar = val;
+  STATE.history.solar.push(val);
+  STATE.history.solarHours.push(STATE.data.hour || 0);
+  if (STATE.history.solar.length > 24) STATE.history.solar.shift();
+  if (STATE.history.solarHours.length > 24) STATE.history.solarHours.shift();
+  break;
 
-        case 'microgrid/load':
-          STATE.data.load = val;
-          STATE.history.load.push(val);
-          if (STATE.history.load.length > 20) STATE.history.load.shift();
-          break;
+case 'microgrid/load':
+  STATE.data.load = val;
+  STATE.history.load.push(val);
+  STATE.history.loadHours.push(STATE.data.hour || 0);
+  if (STATE.history.load.length > 24) STATE.history.load.shift();
+  if (STATE.history.loadHours.length > 24) STATE.history.loadHours.shift();
+  break;
 
-        case 'microgrid/battery':
-          STATE.data.battery = val;
-          STATE.history.battery.push(val);
-          if (STATE.history.battery.length > 20) STATE.history.battery.shift();
-          break;
+case 'microgrid/battery':
+  STATE.data.battery = val;
+  STATE.history.battery.push(val);
+  STATE.history.batteryHours.push(STATE.data.hour || 0);
+  if (STATE.history.battery.length > 24) STATE.history.battery.shift();
+  if (STATE.history.batteryHours.length > 24) STATE.history.batteryHours.shift();
+  break;
 
-        case 'microgrid/grid':
-          STATE.data.gridImport = val;
-          STATE.history.grid.push(val);
-          if (STATE.history.grid.length > 100) STATE.history.grid.shift();
-          break;
+case 'microgrid/grid':
+  STATE.data.gridImport = val;
+  STATE.history.grid.push(val);
+  STATE.history.gridHours.push(STATE.data.hour || 0);
+  if (STATE.history.grid.length > 24) STATE.history.grid.shift();
+  if (STATE.history.gridHours.length > 24) STATE.history.gridHours.shift();
+  break;
 
-        case 'microgrid/grid_export':
-          STATE.data.gridExport = val;
-          break;
-
-        case 'microgrid/temperature':
-          STATE.data.temperature = val;
-          STATE.history.temperature.push(val);
-          if (STATE.history.temperature.length > 20) STATE.history.temperature.shift();
-          break;
-
+case 'microgrid/temperature':
+  STATE.data.temperature = val;
+  STATE.history.temperature.push(val);
+  STATE.history.tempHours.push(STATE.data.hour || 0);
+  if (STATE.history.temperature.length > 24) STATE.history.temperature.shift();
+  if (STATE.history.tempHours.length > 24) STATE.history.tempHours.shift();
+  break;
         case 'microgrid/hour':
           STATE.data.hour = val;
           break;
@@ -1730,7 +1753,9 @@ function initMQTT() {
   const wasAlert  = (STATE.data.alert === 1.0);
   STATE.data.alert = val;
   STATE.history.alert.push(val);
-  if (STATE.history.alert.length > 20) STATE.history.alert.shift();
+STATE.history.alertHours.push(STATE.data.hour || 0);
+if (STATE.history.alert.length > 24) STATE.history.alert.shift();
+if (STATE.history.alertHours.length > 24) STATE.history.alertHours.shift();
 
   if (!STATE.data._alertCounter) STATE.data._alertCounter = 0;
   
