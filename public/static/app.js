@@ -1670,19 +1670,19 @@ function initMQTT() {
         case 'microgrid/load':
           STATE.data.load = val;
           STATE.history.load.push(val);
-          if (STATE.history.load.length > 20) STATE.history.load.shift();
+          if (STATE.history.load.length > 100) STATE.history.load.shift();
           break;
 
         case 'microgrid/battery':
           STATE.data.battery = val;
           STATE.history.battery.push(val);
-          if (STATE.history.battery.length > 20) STATE.history.battery.shift();
+          if (STATE.history.battery.length >100) STATE.history.battery.shift();
           break;
 
         case 'microgrid/grid':
           STATE.data.gridImport = val;
           STATE.history.grid.push(val);
-          if (STATE.history.grid.length > 20) STATE.history.grid.shift();
+          if (STATE.history.grid.length > 100) STATE.history.grid.shift();
           break;
 
         case 'microgrid/grid_export':
@@ -1692,7 +1692,7 @@ function initMQTT() {
         case 'microgrid/temperature':
           STATE.data.temperature = val;
           STATE.history.temperature.push(val);
-          if (STATE.history.temperature.length > 20) STATE.history.temperature.shift();
+          if (STATE.history.temperature.length > 100) STATE.history.temperature.shift();
           break;
 
         case 'microgrid/hour':
