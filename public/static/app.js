@@ -1756,7 +1756,7 @@ function initMQTT() {
       STATE.data._alertCounter = 0;
     }
 
-    if (val === 1.0 && STATE.data._alertCounter >= 3 && wasNormal) {
+    if (val === 1.0 && wasNormal) {
       const now = Date.now();
       const lastAlert = STATE.data._lastAlertTime || 0;
       if (now - lastAlert > 60000) {
