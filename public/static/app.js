@@ -62,7 +62,7 @@ const ROLE_PERMISSIONS = {
 };
 
 // Prepopulate history arrays
-for (let i = 0; i < 20; i++) {
+for (let i = 0; i < 100; i++) {
   STATE.history.solar.push(0);
   STATE.history.load.push(0);
   STATE.history.battery.push(0);
@@ -591,7 +591,7 @@ function makeChart(id, type, labels, datasets, opts = {}) {
   return chart;
 }
 
-const CHART_LABELS = Array.from({length: 20}, (_, i) => `T-${20-i}`);
+const CHART_LABELS = Array.from({length: 100}, (_, i) => `T-${100-i}`);
 
 // ── DASHBOARD PAGE ────────────────────────────────────────
 function renderDashboard() {
@@ -1664,7 +1664,7 @@ function initMQTT() {
         case 'microgrid/solar':
           STATE.data.solar = val;
           STATE.history.solar.push(val);
-          if (STATE.history.solar.length > 20) STATE.history.solar.shift();
+          if (STATE.history.solar.length > 100) STATE.history.solar.shift();
           break;
 
         case 'microgrid/load':
@@ -1712,75 +1712,80 @@ function initMQTT() {
           break;
 
         case 'microgrid/security/alert': {
-          const wasNormal = (STATE.data.alert !== 1.0);
-          const wasAlert  = (STATE.data.alert === 1.0);
-          STATE.data.alert = val;
-          STATE.history.alert.push(val);
-          if (STATE.history.alert.length > 20) STATE.history.alert.shift();
+  const wasNormal = (STATE.data.alert !== 1.0);
+  const wasAlert  = (STATE.data.alert === 1.0);
+  STATE.data.alert = val;
+  STATE.history.alert.push(val);
+  if (STATE.history.alert.length > 100) STATE.history.alert.shift();
 
-          if (val === 1.0 && wasNormal) {
-            const now = Date.now();
-            const lastAlert = STATE.data._lastAlertTime || 0;
-            if (now - lastAlert > 60000) {
-              STATE.data._lastAlertTime = now;
-              const attackType = STATE.data.attackType || 'UNKNOWN';
-              const hour = STATE.data.hour;
-              createAnomalyInBackend(attackType, hour);
-              addAlert('critical',
-                `⚠ ATTACK DETECTED: ${attackType}`,
-                `physical_alert triggered at Hour ${hour}. Grid under attack!`
-              );
-              addLog('critical', 'security',
-                `[IDS] ${attackType} detected at hour ${hour} — physical_alert = 1`
-              );
-              STATE.data.threatScore = 100;
-              STATE.data.attackInjected = 1;
-              STATE.history.threat.push(100);
-              if (STATE.history.threat.length > 20) STATE.history.threat.shift();
-              updateNotifBadge();
+  if (!STATE.data._alertCounter) STATE.data._alertCounter = 0;
+  
+  if (val === 1.0) {
+    STATE.data._alertCounter++;
+  } else {
+    STATE.data._alertCounter = 0;
+  }
+  
+  if (val === 1.0 && STATE.data._alertCounter >= 3 && wasNormal) {
+    const now = Date.now();
+    const lastAlert = STATE.data._lastAlertTime || 0;
+    if (now - lastAlert > 60000) {
+      STATE.data._lastAlertTime = now;
+      const attackType = STATE.data.attackType || 'UNKNOWN';
+      const hour = STATE.data.hour;
+      createAnomalyInBackend(attackType, hour);
+      addAlert('critical',
+        `⚠ ATTACK DETECTED: ${attackType}`,
+        `physical_alert triggered at Hour ${hour}. Grid under attack!`
+      );
+      addLog('critical', 'security',
+        `[IDS] ${attackType} detected at hour ${hour} — physical_alert = 1`
+      );
+      STATE.data.threatScore = 100;
+      STATE.data.attackInjected = 1;
+      STATE.history.threat.push(100);
+      if (STATE.history.threat.length > 100) STATE.history.threat.shift();
+      updateNotifBadge();
 
-              // Force visual update for attack injected
-              const threatStatus = document.getElementById('threat-status');
-              if (threatStatus) { threatStatus.textContent = '⚠ THREAT'; threatStatus.className = 'status-indicator offline'; }
-              const physAlertEl = document.getElementById('live-physical-alert');
-              if (physAlertEl) { physAlertEl.innerHTML = '🚨 ALERT'; physAlertEl.className = 'data-row-value red'; }
-              const attackInj = document.getElementById('live-attack-injected');
-              if (attackInj) { attackInj.innerHTML = '🔴 YES'; attackInj.className = 'data-row-value red'; }
-              const attackTypeEl = document.getElementById('live-attack-type');
-              if (attackTypeEl) { attackTypeEl.textContent = attackType; }
-              const threatFill = document.getElementById('threat-fill');
-              if (threatFill) { threatFill.style.width = '100%'; }
-              const threatEl = document.getElementById('live-threat');
-              if (threatEl) { threatEl.textContent = '100 / 100'; }
-            }
-          }
+      const threatStatus = document.getElementById('threat-status');
+      if (threatStatus) { threatStatus.textContent = '⚠ THREAT'; threatStatus.className = 'status-indicator offline'; }
+      const physAlertEl = document.getElementById('live-physical-alert');
+      if (physAlertEl) { physAlertEl.innerHTML = '🚨 ALERT'; physAlertEl.className = 'data-row-value red'; }
+      const attackInj = document.getElementById('live-attack-injected');
+      if (attackInj) { attackInj.innerHTML = '🔴 YES'; attackInj.className = 'data-row-value red'; }
+      const attackTypeEl = document.getElementById('live-attack-type');
+      if (attackTypeEl) { attackTypeEl.textContent = attackType; }
+      const threatFill = document.getElementById('threat-fill');
+      if (threatFill) { threatFill.style.width = '100%'; }
+      const threatEl = document.getElementById('live-threat');
+      if (threatEl) { threatEl.textContent = '100 / 100'; }
+    }
+  }
 
-          if (val === 0.0 && wasAlert) {
-            STATE.data.threatScore = 18;
-            STATE.data.attackType = 'None';
-            STATE.data.attackInjected = 0;
-            STATE.data._lastAlertTime = 0;
-            STATE.history.threat.push(18);
-            if (STATE.history.threat.length > 20) STATE.history.threat.shift();
-            addLog('success', 'security', '[IDS] Physical alert cleared — system returning to normal');
+  if (val === 0.0 && wasAlert && STATE.data._alertCounter === 0) {
+    STATE.data.threatScore = 18;
+    STATE.data.attackType = 'None';
+    STATE.data.attackInjected = 0;
+    STATE.data._lastAlertTime = 0;
+    STATE.history.threat.push(18);
+    if (STATE.history.threat.length > 100) STATE.history.threat.shift();
+    addLog('success', 'security', '[IDS] Physical alert cleared — system returning to normal');
 
-            // Force visual reset immediately
-            const threatStatus = document.getElementById('threat-status');
-            if (threatStatus) { threatStatus.textContent = '✓ SECURE'; threatStatus.className = 'status-indicator online'; }
-            const physAlertEl = document.getElementById('live-physical-alert');
-            if (physAlertEl) { physAlertEl.innerHTML = '✅ Normal'; physAlertEl.className = 'data-row-value green'; }
-            const attackInj = document.getElementById('live-attack-injected');
-            if (attackInj) { attackInj.innerHTML = '🟢 NO'; attackInj.className = 'data-row-value green'; }
-            const attackTypeEl = document.getElementById('live-attack-type');
-            if (attackTypeEl) { attackTypeEl.textContent = '—'; }
-            const threatFill = document.getElementById('threat-fill');
-            if (threatFill) { threatFill.style.width = '18%'; }
-            const threatEl = document.getElementById('live-threat');
-            if (threatEl) { threatEl.textContent = '18 / 100'; }
-          }
-          break;
-        }
-      }
+    const threatStatus = document.getElementById('threat-status');
+    if (threatStatus) { threatStatus.textContent = '✓ SECURE'; threatStatus.className = 'status-indicator online'; }
+    const physAlertEl = document.getElementById('live-physical-alert');
+    if (physAlertEl) { physAlertEl.innerHTML = '✅ Normal'; physAlertEl.className = 'data-row-value green'; }
+    const attackInj = document.getElementById('live-attack-injected');
+    if (attackInj) { attackInj.innerHTML = '🟢 NO'; attackInj.className = 'data-row-value green'; }
+    const attackTypeEl = document.getElementById('live-attack-type');
+    if (attackTypeEl) { attackTypeEl.textContent = '—'; }
+    const threatFill = document.getElementById('threat-fill');
+    if (threatFill) { threatFill.style.width = '18%'; }
+    const threatEl = document.getElementById('live-threat');
+    if (threatEl) { threatEl.textContent = '18 / 100'; }
+  }
+  break;
+}
 
       updateLiveValues();
       updateLiveCharts();
