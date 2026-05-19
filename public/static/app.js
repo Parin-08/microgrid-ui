@@ -173,7 +173,7 @@ function renderLogin() {
     </div>
   </div>
       <div class="login-logo" style="font-size: 14px;">GRID CONTROL SYSTEM v3.2</div>
-<div class="login-title" style="font-size: 42px; font-weight: 800; line-height: 1.2;">NEXORA<br>GRID</div>
+<div class="login-title" style="font-size: 42px; font-weight: 800; line-height: 1.2;">NEXORA<br>ONE</div>
 <div class="login-subtitle" style="font-size: 14px;">Secure access — TLS 1.3 encrypted</div>
 
       <div class="input-group">
