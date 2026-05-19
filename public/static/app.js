@@ -166,12 +166,12 @@ function renderLogin() {
   root.innerHTML = `
   <div id="login-screen" class="grid-bg">
     <div class="scan-effect" style="position:fixed"></div>
-    <div class="login-card">
-      <div style="text-align:center;margin-bottom:24px;">
-        <div style="width:64px;height:64px;background:linear-gradient(135deg,#004466,#007799);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;border:2px solid rgba(0,212,255,0.4);box-shadow:0 0 30px rgba(0,212,255,0.2);">
-          🔐
-        </div>
-      </div>
+   <div class="login-card" style="width: 480px; background: linear-gradient(135deg, #1a0a2e, #2d1b4e); border: 1px solid rgba(168,85,247,0.4); box-shadow: 0 0 40px rgba(168,85,247,0.2);">
+  <div style="text-align:center;margin-bottom:24px;">
+    <div style="width:64px;height:64px;background:linear-gradient(135deg,#6a1b9a,#9c27b0);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;border:2px solid rgba(168,85,247,0.6);box-shadow:0 0 30px rgba(168,85,247,0.3);">
+      🔐
+    </div>
+  </div>
       <div class="login-logo">GRID CONTROL SYSTEM v3.2</div>
       <div class="login-title">CyberSecure<br>Microgrid Controller</div>
       <div class="login-subtitle">Secure access required — TLS 1.3 encrypted</div>
@@ -202,12 +202,7 @@ function renderLogin() {
         <i class="fas fa-exclamation-triangle"></i>
         <span id="login-error-msg">Invalid credentials</span>
       </div>
-      <div class="demo-creds">
-        <div style="font-size:11px;font-weight:700;margin-bottom:6px;color:var(--accent-cyan);letter-spacing:1px;">DEMO CREDENTIALS</div>
-        <div>👑 <strong>admin</strong> / secret— Full access</div>
-        <div>⚙️ <strong>operator</strong> / secret— Monitoring + control</div>
-        <div>👁 <strong>viewer</strong> / secret— Read-only access</div>
-      </div>
+      <!-- Demo credentials removed -->
       <div class="mqtt-bar" style="margin-top:16px;">
         <span class="dot"></span>
         <span>MQTT: broker.microgrid.local:8883</span>
@@ -617,7 +612,7 @@ function renderDashboard() {
     <div class="section-header">
       <div>
         <div class="section-title">System Dashboard</div>
-        <div class="section-subtitle">Real-time microgrid monitoring — auto-refreshes every 2 seconds</div>
+        <div class="section-subtitle">Real-time microgrid monitoring — live MQTT stream</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;">
         <div class="mqtt-bar"><span class="dot"></span> MQTT Connected &nbsp;|&nbsp; 🔒 TLS 1.3 &nbsp;|&nbsp; JWT Active</div>
