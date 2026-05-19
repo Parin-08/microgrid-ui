@@ -54,6 +54,12 @@ const STATE = {
   tempHours:    [],
   alertHours:   [],
   threatHours:  [],
+  solarByHour:   {},
+loadByHour:    {},
+batteryByHour: {},
+gridByHour:    {},
+tempByHour:    {},
+alertByHour:   {},
 };
 
 const USERS = {
@@ -545,43 +551,58 @@ function updateLiveCharts() {
   const ci = STATE.chartInstances;
   const h  = STATE.history;
 
-  const push = (id, arr, hours) => {
+  // Build sorted hour arrays from the keyed objects
+  const toSortedArrays = (byHour) => {
+    const hours = Object.keys(byHour).map(Number).sort((a,b) => a - b);
+    return {
+      labels: hours.map(hr => `Hr ${hr}`),
+      data:   hours.map(hr => byHour[hr])
+    };
+  };
+
+  const pushKeyed = (id, byHour) => {
     const c = ci[id];
     if (!c) return;
-    c.data.datasets[0].data = [...arr];
-    c.data.labels = (hours && hours.length === arr.length)
-      ? hours.map(hr => `Hr ${hr}`)
-      : arr.map((_, i) => `Hr ${i}`);
+    const { labels, data } = toSortedArrays(byHour);
+    c.data.labels = labels;
+    c.data.datasets[0].data = data;
     if (!c.options.scales) c.options.scales = {};
     if (!c.options.scales.x) c.options.scales.x = {};
-    c.options.scales.x.ticks = { maxTicksLimit: 12, maxRotation: 0 };
+    c.options.scales.x.ticks = { maxTicksLimit: 24, maxRotation: 0 };
     c.update('none');
   };
 
-  push('chart-solar',        h.solar,       h.solarHours);
-  push('chart-load',         h.load,        h.loadHours);
-  push('chart-battery',      h.battery,     h.batteryHours);
-  push('chart-temp',         h.temperature, h.tempHours);
-  push('chart-alert',        h.alert,       h.alertHours);
-  push('chart-threat',       h.threat,      h.threatHours);
-  push('chart-energy-solar', h.solar,       h.solarHours);
-  push('chart-energy-load',  h.load,        h.loadHours);
+  pushKeyed('chart-solar',        h.solarByHour);
+  pushKeyed('chart-load',         h.loadByHour);
+  pushKeyed('chart-battery',      h.batteryByHour);
+  pushKeyed('chart-temp',         h.tempByHour);
+  pushKeyed('chart-alert',        h.alertByHour);
+  pushKeyed('chart-energy-solar', h.solarByHour);
+  pushKeyed('chart-energy-load',  h.loadByHour);
 
+  // Grid with color
   ['chart-grid', 'chart-grid-sm'].forEach(id => {
     const c = ci[id];
     if (!c) return;
-    c.data.datasets[0].data = [...h.grid];
-    c.data.labels = (h.gridHours && h.gridHours.length === h.grid.length)
-      ? h.gridHours.map(hr => `Hr ${hr}`)
-      : h.grid.map((_, i) => `Hr ${i}`);
-    c.data.datasets[0].backgroundColor = h.grid.map(
+    const { labels, data } = toSortedArrays(h.gridByHour);
+    c.data.labels = labels;
+    c.data.datasets[0].data = data;
+    c.data.datasets[0].backgroundColor = data.map(
       v => v >= 0 ? 'rgba(0,255,136,0.5)' : 'rgba(255,51,102,0.5)'
     );
     if (!c.options.scales) c.options.scales = {};
     if (!c.options.scales.x) c.options.scales.x = {};
-    c.options.scales.x.ticks = { maxTicksLimit: 12, maxRotation: 0 };
+    c.options.scales.x.ticks = { maxTicksLimit: 24, maxRotation: 0 };
     c.update('none');
   });
+
+  // Threat still uses push-based history (it's event-driven, not per-hour)
+  const tc = ci['chart-threat'];
+  if (tc) {
+    tc.data.datasets[0].data = [...h.threat];
+    tc.data.labels = h.threat.map((_, i) => `T-${h.threat.length - 1 - i}`);
+    tc.update('none');
+  }
 }
 // ── Chart Factory ─────────────────────────────────────────
 function makeChart(id, type, labels, datasets, opts = {}) {
@@ -1695,42 +1716,27 @@ function initMQTT() {
       switch(topic) {
         case 'microgrid/solar':
   STATE.data.solar = val;
-  STATE.history.solar.push(val);
-  STATE.history.solarHours.push(STATE.data.hour || 0);
-  if (STATE.history.solar.length > 24) STATE.history.solar.shift();
-  if (STATE.history.solarHours.length > 24) STATE.history.solarHours.shift();
+  STATE.history.solarByHour[STATE.data.hour] = val;
   break;
 
 case 'microgrid/load':
   STATE.data.load = val;
-  STATE.history.load.push(val);
-  STATE.history.loadHours.push(STATE.data.hour || 0);
-  if (STATE.history.load.length > 24) STATE.history.load.shift();
-  if (STATE.history.loadHours.length > 24) STATE.history.loadHours.shift();
+  STATE.history.loadByHour[STATE.data.hour] = val;
   break;
 
 case 'microgrid/battery':
   STATE.data.battery = val;
-  STATE.history.battery.push(val);
-  STATE.history.batteryHours.push(STATE.data.hour || 0);
-  if (STATE.history.battery.length > 24) STATE.history.battery.shift();
-  if (STATE.history.batteryHours.length > 24) STATE.history.batteryHours.shift();
+  STATE.history.batteryByHour[STATE.data.hour] = val;
   break;
 
 case 'microgrid/grid':
   STATE.data.gridImport = val;
-  STATE.history.grid.push(val);
-  STATE.history.gridHours.push(STATE.data.hour || 0);
-  if (STATE.history.grid.length > 24) STATE.history.grid.shift();
-  if (STATE.history.gridHours.length > 24) STATE.history.gridHours.shift();
+  STATE.history.gridByHour[STATE.data.hour] = val;
   break;
 
 case 'microgrid/temperature':
   STATE.data.temperature = val;
-  STATE.history.temperature.push(val);
-  STATE.history.tempHours.push(STATE.data.hour || 0);
-  if (STATE.history.temperature.length > 24) STATE.history.temperature.shift();
-  if (STATE.history.tempHours.length > 24) STATE.history.tempHours.shift();
+  STATE.history.tempByHour[STATE.data.hour] = val;
   break;
         case 'microgrid/hour':
           STATE.data.hour = val;
@@ -1751,6 +1757,7 @@ case 'microgrid/temperature':
         case 'microgrid/security/alert': {
   const wasNormal = (STATE.data.alert !== 1.0);
   const wasAlert  = (STATE.data.alert === 1.0);
+  STATE.history.alertByHour[STATE.data.hour] = val;
   STATE.data.alert = val;
   STATE.history.alert.push(val);
 STATE.history.alertHours.push(STATE.data.hour || 0);
