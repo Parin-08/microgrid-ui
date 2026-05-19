@@ -1851,3 +1851,4 @@ async function createAnomalyInBackend(attackType, hour) {
   }
 }
 
+}
