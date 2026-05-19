@@ -1644,7 +1644,7 @@ function initMQTT() {
     clientId: 'microgrid-ui-' + Math.random().toString(16).slice(2),
     clean: true
   });
-}
+
   client.on('connect', () => {
     console.log('HiveMQ connected!');
     client.subscribe('microgrid/#');
@@ -1771,7 +1771,7 @@ function initMQTT() {
     if (STATE.history.threat.length > 100) STATE.history.threat.shift();
     addLog('success', 'security', '[IDS] Physical alert cleared — system returning to normal');
 
-    const threatStatus = document.getElementById('threat-status');
+   const threatStatus = document.getElementById('threat-status');
     if (threatStatus) { threatStatus.textContent = '✓ SECURE'; threatStatus.className = 'status-indicator online'; }
     const physAlertEl = document.getElementById('live-physical-alert');
     if (physAlertEl) { physAlertEl.innerHTML = '✅ Normal'; physAlertEl.className = 'data-row-value green'; }
@@ -1783,18 +1783,23 @@ function initMQTT() {
     if (threatFill) { threatFill.style.width = '18%'; }
     const threatEl = document.getElementById('live-threat');
     if (threatEl) { threatEl.textContent = '18 / 100'; }
-  }
+  }             // closes if (val === 0.0 && wasAlert...)
+
+  updateLiveValues();
+  updateLiveCharts();
   break;
-}
+}             // closes case 'microgrid/security/alert'
 
-          updateLiveValues();
-    updateLiveCharts();
+    }         // closes switch(topic)
 
-  } catch(e) {
-    console.log('MQTT parse error:', topic, message.toString(), e);
-  }
-});
+    } catch(e) {
+      console.log('MQTT parse error:', topic, message.toString(), e);
+    }
+  });         // closes client.on('message')
 
+}             // closes initMQTT
+
+async function ingestTelemetryToBackend(rowData) {
 async function ingestTelemetryToBackend(rowData) {
   try {
     await fetch('https://microgrid-final.onrender.com/telemetry/ingest', {
@@ -1846,4 +1851,3 @@ async function createAnomalyInBackend(attackType, hour) {
   }
 }
 
-} // ← EXTRA BRACE - Add this if missing
