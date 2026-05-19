@@ -166,15 +166,15 @@ function renderLogin() {
   root.innerHTML = `
   <div id="login-screen" class="grid-bg">
     <div class="scan-effect" style="position:fixed"></div>
-   <div class="login-card" style="width: 480px; background: linear-gradient(135deg, #120325, #072635); border: 1px solid rgba(168,85,247,0.4); box-shadow: 0 0 40px rgba(168,85,247,0.2);">
+   <div class="login-card" style="width:520px; background: linear-gradient(135deg, #120325, #072635); border: 1px solid rgba(168,85,247,0.4); box-shadow: 0 0 40px rgba(168,85,247,0.2);">
   <div style="text-align:center;margin-bottom:24px;">
     <div style="width:64px;height:64px;background:linear-gradient(135deg,#6a1b9a,#9c27b0);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;border:2px solid rgba(168,85,247,0.6);box-shadow:0 0 30px rgba(168,85,247,0.3);">
       🔐
     </div>
   </div>
       <div class="login-logo">GRID CONTROL SYSTEM v3.2</div>
-      <div class="login-title">CyberSecure<br>Microgrid Controller</div>
-      <div class="login-subtitle">Secure access required — TLS 1.3 encrypted</div>
+      <div class="login-title">CyberSecure<br>C.Y.V.O.L.T</div>
+      <div class="login-subtitle">Secure access— TLS 1.3 encrypted</div>
 
       <div class="input-group">
         <label>Username</label>
