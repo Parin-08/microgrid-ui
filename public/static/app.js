@@ -1622,12 +1622,26 @@ async function fetchRealAnomalies() {
     console.log('Real anomalies:', data);
     if (Array.isArray(data) && data.length > 0) {
       STATE.data.anomalies = data;
-      STATE.data.threatScore = Math.min(100, data.length * 10);
-      const threatEl = document.getElementById('live-threat');
-      const threatFill = document.getElementById('threat-fill');
-      const score = STATE.data.threatScore;
-      if (threatEl) threatEl.textContent = score.toFixed(0) + ' / 100';
-      if (threatFill) threatFill.style.width = score + '%';
+
+      // ── Only update threat score if no live MQTT alert is active ──
+      if (STATE.data.alert !== 1.0) {
+        const oneHourAgo = Date.now() - 60 * 60 * 1000;
+        const recentActive = data.filter(a => {
+          const isActive = a.status !== 'resolved' && a.resolved !== true;
+          const isRecent = !a.timestamp || new Date(a.timestamp).getTime() > oneHourAgo;
+          return isActive && isRecent;
+        });
+
+        const score = Math.min(100, recentActive.length * 10);
+        // Only update UI if MQTT hasn't already set a live threat state
+        if (STATE.data.threatScore !== 100) {
+          STATE.data.threatScore = score;
+          const threatEl = document.getElementById('live-threat');
+          const threatFill = document.getElementById('threat-fill');
+          if (threatEl) threatEl.textContent = score.toFixed(0) + ' / 100';
+          if (threatFill) threatFill.style.width = score + '%';
+        }
+      }
     }
   } catch(e) {
     console.error('Failed to fetch anomalies:', e);
@@ -1664,19 +1678,19 @@ function initMQTT() {
         case 'microgrid/solar':
           STATE.data.solar = val;
           STATE.history.solar.push(val);
-          if (STATE.history.solar.length > 100) STATE.history.solar.shift();
+          if (STATE.history.solar.length > 20) STATE.history.solar.shift();
           break;
 
         case 'microgrid/load':
           STATE.data.load = val;
           STATE.history.load.push(val);
-          if (STATE.history.load.length > 100) STATE.history.load.shift();
+          if (STATE.history.load.length > 20) STATE.history.load.shift();
           break;
 
         case 'microgrid/battery':
           STATE.data.battery = val;
           STATE.history.battery.push(val);
-          if (STATE.history.battery.length >100) STATE.history.battery.shift();
+          if (STATE.history.battery.length > 20) STATE.history.battery.shift();
           break;
 
         case 'microgrid/grid':
@@ -1692,7 +1706,7 @@ function initMQTT() {
         case 'microgrid/temperature':
           STATE.data.temperature = val;
           STATE.history.temperature.push(val);
-          if (STATE.history.temperature.length > 100) STATE.history.temperature.shift();
+          if (STATE.history.temperature.length > 20) STATE.history.temperature.shift();
           break;
 
         case 'microgrid/hour':
@@ -1716,7 +1730,7 @@ function initMQTT() {
   const wasAlert  = (STATE.data.alert === 1.0);
   STATE.data.alert = val;
   STATE.history.alert.push(val);
-  if (STATE.history.alert.length > 100) STATE.history.alert.shift();
+  if (STATE.history.alert.length > 20) STATE.history.alert.shift();
 
   if (!STATE.data._alertCounter) STATE.data._alertCounter = 0;
   
@@ -1771,7 +1785,7 @@ function initMQTT() {
     if (STATE.history.threat.length > 100) STATE.history.threat.shift();
     addLog('success', 'security', '[IDS] Physical alert cleared — system returning to normal');
 
-   const threatStatus = document.getElementById('threat-status');
+    const threatStatus = document.getElementById('threat-status');
     if (threatStatus) { threatStatus.textContent = '✓ SECURE'; threatStatus.className = 'status-indicator online'; }
     const physAlertEl = document.getElementById('live-physical-alert');
     if (physAlertEl) { physAlertEl.innerHTML = '✅ Normal'; physAlertEl.className = 'data-row-value green'; }
@@ -1783,23 +1797,22 @@ function initMQTT() {
     if (threatFill) { threatFill.style.width = '18%'; }
     const threatEl = document.getElementById('live-threat');
     if (threatEl) { threatEl.textContent = '18 / 100'; }
-  }             // closes if (val === 0.0 && wasAlert...)
+  }
 
   updateLiveValues();
   updateLiveCharts();
   break;
-}             // closes case 'microgrid/security/alert'
+}
 
-    }         // closes switch(topic)
+      }
 
     } catch(e) {
       console.log('MQTT parse error:', topic, message.toString(), e);
     }
-  });         // closes client.on('message')
+  });
 
-}             // closes initMQTT
+}
 
-async function ingestTelemetryToBackend(rowData) {
 async function ingestTelemetryToBackend(rowData) {
   try {
     await fetch('https://microgrid-final.onrender.com/telemetry/ingest', {
@@ -1849,6 +1862,4 @@ async function createAnomalyInBackend(attackType, hour) {
   } catch(e) {
     console.error('Failed to create anomaly:', e);
   }
-}
-
 }
