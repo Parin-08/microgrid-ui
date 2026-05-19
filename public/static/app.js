@@ -166,7 +166,7 @@ function renderLogin() {
   root.innerHTML = `
   <div id="login-screen" class="grid-bg">
     <div class="scan-effect" style="position:fixed"></div>
-   <div class="login-card" style="width: 480px; background: linear-gradient(135deg, #c60776, #c00b78); border: 1px solid rgba(196, 15, 85, 0.4); box-shadow: 0 0 40px rgba(194, 7, 156, 0.2);">
+   <div class="login-card" style="width: 480px; background: linear-gradient(135deg, #120325, #072635); border: 1px solid rgba(168,85,247,0.4); box-shadow: 0 0 40px rgba(168,85,247,0.2);">
   <div style="text-align:center;margin-bottom:24px;">
     <div style="width:64px;height:64px;background:linear-gradient(135deg,#6a1b9a,#9c27b0);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;border:2px solid rgba(168,85,247,0.6);box-shadow:0 0 30px rgba(168,85,247,0.3);">
       🔐
