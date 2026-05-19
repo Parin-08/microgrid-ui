@@ -1787,61 +1787,63 @@ function initMQTT() {
   break;
 }
 
-      updateLiveValues();
-      updateLiveCharts();
+          updateLiveValues();
+    updateLiveCharts();
 
-    } catch(e) {
-      console.log('MQTT parse error:', topic, message.toString(), e);
-    }
-  });
+  } catch(e) {
+    console.log('MQTT parse error:', topic, message.toString(), e);
+  }
+});
 
- async function ingestTelemetryToBackend(rowData) {
+async function ingestTelemetryToBackend(rowData) {
   try {
     await fetch('https://microgrid-final.onrender.com/telemetry/ingest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        device_id:         'inverter_01',
-        solar_kw:          rowData.solar,
-        load_kw:           rowData.load,
-        battery_soc_kwh:   rowData.battery,
+        device_id: 'inverter_01',
+        solar_kw: rowData.solar,
+        load_kw: rowData.load,
+        battery_soc_kwh: rowData.battery,
         battery_action_kw: rowData.batteryAction || 0,
-        grid_import_kw:    rowData.gridImport,
-        grid_export_kw:    rowData.gridExport || 0,
-        temperature_c:     rowData.temperature,
-        physical_alert:    rowData.alert,
-        attack_injected:   rowData.attackInjected || 0,
-        attack_type:       rowData.attackType || 'NONE',
-        hour:              rowData.hour
+        grid_import_kw: rowData.gridImport,
+        grid_export_kw: rowData.gridExport || 0,
+        temperature_c: rowData.temperature,
+        physical_alert: rowData.alert,
+        attack_injected: rowData.attackInjected || 0,
+        attack_type: rowData.attackType || 'NONE',
+        hour: rowData.hour
       })
     }).catch(() => {});
   } catch(e) {}
 }
-  async function createAnomalyInBackend(attackType, hour) {
-    try {
-      const token = STATE.currentUser?.token;
-      if (!token) return;
-      const res = await fetch('https://microgrid-final.onrender.com/anomalies/', {
-        method: 'POST',
-        headers: {
-          'Authorization': 'Bearer ' + token,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          anomaly_type:   attackType,
-          severity:       'critical',
-          description:    `${attackType} detected at hour ${hour}`,
-          hour:           hour,
-          solar_kw:       STATE.data.solar,
-          load_kw:        STATE.data.load,
-          grid_import_kw: STATE.data.gridImport,
-          temperature_c:  STATE.data.temperature
-        })
-      });
-      const result = await res.json();
-      console.log('Anomaly created in backend:', result);
-    } catch(e) {
-      console.error('Failed to create anomaly:', e);
-    }
+
+async function createAnomalyInBackend(attackType, hour) {
+  try {
+    const token = STATE.currentUser?.token;
+    if (!token) return;
+    const res = await fetch('https://microgrid-final.onrender.com/anomalies/', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        anomaly_type: attackType,
+        severity: 'critical',
+        description: `${attackType} detected at hour ${hour}`,
+        hour: hour,
+        solar_kw: STATE.data.solar,
+        load_kw: STATE.data.load,
+        grid_import_kw: STATE.data.gridImport,
+        temperature_c: STATE.data.temperature
+      })
+    });
+    const result = await res.json();
+    console.log('Anomaly created in backend:', result);
+  } catch(e) {
+    console.error('Failed to create anomaly:', e);
   }
 }
+
+} // ← EXTRA BRACE - Add this if missing
