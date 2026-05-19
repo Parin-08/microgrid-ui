@@ -1644,7 +1644,7 @@ function initMQTT() {
     clientId: 'microgrid-ui-' + Math.random().toString(16).slice(2),
     clean: true
   });
-
+}
   client.on('connect', () => {
     console.log('HiveMQ connected!');
     client.subscribe('microgrid/#');
