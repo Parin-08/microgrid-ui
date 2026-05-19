@@ -492,123 +492,85 @@ function updateTopbarPills() {
 }
 
 // ── Live Value Updates ─────────────────────────────────
-function updateLiveValues() {
-  const d = STATE.data;
-  const sets = {
-    'live-solar':    `${(d.solar||0).toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-battery':  `${(d.battery||0).toFixed(1)} <span class="kpi-unit">kWh</span>`,
-    'live-load':     `${(d.load||0).toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-grid-exp': `${(d.gridExport||0).toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-grid-imp': `${(d.gridImport||0).toFixed(1)} <span class="kpi-unit">kW</span>`,
-    'live-temp':     `${(d.temperature||0).toFixed(1)} <span class="kpi-unit">°C</span>`,
-    'live-threat':   `${(d.threatScore||18).toFixed(0)} <span class="kpi-unit">/100</span>`,
-  };
-  Object.entries(sets).forEach(([id, val]) => {
-    const el = document.getElementById(id);
-    if (el) { el.innerHTML = val; el.classList.add('updating'); setTimeout(() => el.classList.remove('updating'), 500); }
-  });
-
-  // Battery bar
-  const battPct = Math.min(100, (d.battery / 10) * 100);
-  const fill = document.getElementById('battery-fill');
-  if (fill) {
-    fill.style.width = `${battPct.toFixed(0)}%`;
-    fill.className = `battery-fill ${battPct >= 50 ? 'high' : battPct >= 25 ? 'mid' : 'low'}`;
-  }
-  const battText = document.getElementById('battery-bar-text');
-  if (battText) battText.textContent = `${(d.battery||0).toFixed(1)} kWh`;
-
-  // Threat bar
-  const threatFill = document.getElementById('threat-fill');
-  if (threatFill) threatFill.style.width = `${(d.threatScore||18)}%`;
-
-  // Attack injected — tied directly to physical alert
-  const attackInj = document.getElementById('live-attack-injected');
-  if (attackInj) {
-    attackInj.innerHTML = STATE.data.alert === 1 ? '🔴 YES' : '🟢 NO';
-    attackInj.className = `data-row-value ${STATE.data.alert === 1 ? 'red' : 'green'}`;
-  }
-
-  // Attack type
-  const attackType = document.getElementById('live-attack-type');
-  if (attackType) attackType.textContent =
-    (STATE.data.alert === 1 && STATE.data.attackType && STATE.data.attackType !== 'None')
-      ? STATE.data.attackType : '—';
-
-  // Physical alert
-  const physAlertEl = document.getElementById('live-physical-alert');
-  if (physAlertEl) {
-    physAlertEl.innerHTML = STATE.data.alert === 1 ? '🚨 ALERT' : '✅ Normal';
-    physAlertEl.className = `data-row-value ${STATE.data.alert === 1 ? 'red' : 'green'}`;
-  }
-
-  // Threat status badge
-  const threatStatus = document.getElementById('threat-status');
-  if (threatStatus) {
-    threatStatus.textContent = STATE.data.alert === 1 ? '⚠ THREAT' : '✓ SECURE';
-    threatStatus.className = `status-indicator ${STATE.data.alert === 1 ? 'offline' : 'online'}`;
-  }
-
-  // Topology
-  const topoSolar = document.getElementById('topo-solar-val'); if(topoSolar) topoSolar.textContent = `${(d.solar||0).toFixed(1)} kW`;
-  const topoBatt  = document.getElementById('topo-batt-val');  if(topoBatt)  topoBatt.textContent  = `${(d.battery||0).toFixed(1)} kWh`;
-  const topoLoad  = document.getElementById('topo-load-val');  if(topoLoad)  topoLoad.textContent  = `${(d.load||0).toFixed(1)} kW`;
-  const topoGrid  = document.getElementById('topo-grid-val');  if(topoGrid)  topoGrid.textContent  = `${(d.gridExport||0).toFixed(1)} kW`;
-}
 function updateLiveCharts() {
   const ci = STATE.chartInstances;
   const h  = STATE.history;
 
-  // Build sorted hour arrays from the keyed objects
-  const toSortedArrays = (byHour) => {
-  if (!byHour || typeof byHour !== 'object') return { labels: [], data: [] };
-  const hours = Object.keys(byHour)
-    .map(Number)
-    .filter(n => !isNaN(n))   // ← strips out any 'undefined' keys
-    .sort((a, b) => a - b);
-  return {
-    labels: hours.map(hr => `Hr ${hr}`),
-    data:   hours.map(hr => byHour[hr])
+  let _chartUpdateTimer = null;
+  const scheduleChartUpdate = () => {
+    clearTimeout(_chartUpdateTimer);
+    _chartUpdateTimer = setTimeout(updateLiveCharts, 300);
   };
-};
 
-  const pushKeyed = (id, byHour) => {
+  const toSortedArrays = (byHour) => {
+    if (!byHour || typeof byHour !== 'object') return { labels: [], data: [] };
+    const hours = Object.keys(byHour).map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
+    return {
+      labels: hours.map(hr => `Hr ${hr}`),
+      data:   hours.map(hr => byHour[hr])
+    };
+  };
+
+  const pushKeyed = (id, byHour, yOpts = {}) => {
     const c = ci[id];
     if (!c) return;
     const { labels, data } = toSortedArrays(byHour);
+    if (data.length === 0) return;
     c.data.labels = labels;
     c.data.datasets[0].data = data;
-    if (!c.options.scales) c.options.scales = {};
-    if (!c.options.scales.x) c.options.scales.x = {};
-    c.options.scales.x.ticks = { maxTicksLimit: 24, maxRotation: 0 };
+    c.options.scales.y = {
+      beginAtZero: yOpts.beginAtZero ?? false,
+      min: yOpts.min ?? undefined,
+      max: yOpts.max ?? undefined,
+      grid: { color: 'rgba(26,58,92,0.4)' },
+      ticks: { color: '#4a6a8a', font: { size: 10 } }
+    };
+    c.options.scales.x.ticks = { maxTicksLimit: 24, maxRotation: 0, color: '#4a6a8a' };
     c.update('none');
   };
 
-  pushKeyed('chart-solar',        h.solarByHour);
-  pushKeyed('chart-load',         h.loadByHour);
-  pushKeyed('chart-battery',      h.batteryByHour);
-  pushKeyed('chart-temp',         h.tempByHour);
-  pushKeyed('chart-alert',        h.alertByHour);
-  pushKeyed('chart-energy-solar', h.solarByHour);
-  pushKeyed('chart-energy-load',  h.loadByHour);
+  // Solar — matches MATLAB: line, 0–12 kW, beginAtZero
+  pushKeyed('chart-solar', h.solarByHour, { beginAtZero: true, min: 0, max: 12 });
 
-  // Grid with color
+  // Load — matches MATLAB: line, 0–12 kW
+  pushKeyed('chart-load', h.loadByHour, { beginAtZero: true, min: 0, max: 12 });
+
+  // Battery — matches MATLAB: line, 0–20 kWh
+  pushKeyed('chart-battery', h.batteryByHour, { beginAtZero: true, min: 0, max: 20 });
+
+  // Temperature — matches MATLAB: line, 20–45°C
+  pushKeyed('chart-temp', h.tempByHour, { beginAtZero: false, min: 20, max: 45 });
+
+  // Alert — matches MATLAB: bar, 0–1
+  pushKeyed('chart-alert', h.alertByHour, { beginAtZero: true, min: 0, max: 1 });
+
+  // Energy page charts
+  pushKeyed('chart-energy-solar', h.solarByHour, { beginAtZero: true, min: 0, max: 12 });
+  pushKeyed('chart-energy-load',  h.loadByHour,  { beginAtZero: true, min: 0, max: 12 });
+
+  // Grid — bar chart with green/red colors, matches MATLAB
   ['chart-grid', 'chart-grid-sm'].forEach(id => {
     const c = ci[id];
     if (!c) return;
     const { labels, data } = toSortedArrays(h.gridByHour);
+    if (data.length === 0) return;
     c.data.labels = labels;
     c.data.datasets[0].data = data;
     c.data.datasets[0].backgroundColor = data.map(
-      v => v >= 0 ? 'rgba(0,255,136,0.5)' : 'rgba(255,51,102,0.5)'
+      v => v >= 0 ? 'rgba(255,80,80,0.7)' : 'rgba(0,255,136,0.7)'  // red=import, green=export like MATLAB
     );
-    if (!c.options.scales) c.options.scales = {};
-    if (!c.options.scales.x) c.options.scales.x = {};
-    c.options.scales.x.ticks = { maxTicksLimit: 24, maxRotation: 0 };
+    c.options.scales.y = {
+      beginAtZero: true,
+      min: 0,
+      max: 12,
+      grid: { color: 'rgba(26,58,92,0.4)' },
+      ticks: { color: '#4a6a8a', font: { size: 10 } }
+    };
+    c.options.scales.x.ticks = { maxTicksLimit: 24, maxRotation: 0, color: '#4a6a8a' };
     c.update('none');
   });
 
-  // Threat still uses push-based history (it's event-driven, not per-hour)
+  // Threat — event-driven, keep as-is
   const tc = ci['chart-threat'];
   if (tc) {
     tc.data.datasets[0].data = [...h.threat];
@@ -626,7 +588,7 @@ function makeChart(id, type, labels, datasets, opts = {}) {
     data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
-      animation: { duration: 400 },
+      animation: { duration: 0 },
       plugins: {
         legend: { display: opts.legend || false, labels: { color: '#7a9cc0', font: { size: 11 } } },
         tooltip: { backgroundColor: '#0a1628', borderColor: '#1a3a5c', borderWidth: 1, titleColor: '#e2f0ff', bodyColor: '#7a9cc0' }
@@ -642,7 +604,7 @@ function makeChart(id, type, labels, datasets, opts = {}) {
   return chart;
 }
 
-const CHART_LABELS = Array.from({length: 100}, (_, i) => `T-${100-i}`);
+//nst CHART_LABELS = Array.from({length: 100}, (_, i) => `T-${100-i}`);
 
 // ── DASHBOARD PAGE ────────────────────────────────────────
 function renderDashboard() {
@@ -827,34 +789,42 @@ function renderDashboard() {
 
   // Initialize charts
   setTimeout(() => {
-    makeChart('chart-power', 'line', CHART_LABELS, [
-      { label:'Solar', data: STATE.history.solar, borderColor:'#ffcc00', backgroundColor:'rgba(255,204,0,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 },
-      { label:'Load',  data: STATE.history.load,  borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
-    ], { legend: true });
-    makeChart('chart-battery', 'line', CHART_LABELS, [
-      { label:'SOC', data: STATE.history.battery, borderColor:'#00ff88', backgroundColor:'rgba(0,255,136,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
-    ], { yScale: { min: 0, max: 100 } });
-    makeChart('chart-grid', 'bar', CHART_LABELS, [
-      { label:'Net Grid', data: STATE.history.grid, backgroundColor: STATE.history.grid.map(v => v >= 0 ? 'rgba(0,255,136,0.5)' : 'rgba(255,51,102,0.5)'), borderRadius:3 }
-    ]);
-    makeChart('chart-threat', 'line', CHART_LABELS, [
-      { label:'Threat', data: STATE.history.threat, borderColor:'#ff3366', backgroundColor:'rgba(255,51,102,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
-    ], { yScale: { min: 0, max: 100 } });
-    makeChart('chart-solar', 'line', CHART_LABELS, [
-  { label:'Solar kW', data: STATE.history.solar, borderColor:'#ffcc00', backgroundColor:'rgba(255,204,0,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
+   makeChart('chart-power', 'line', [], [
+  { label:'Solar', data: [], borderColor:'#ffcc00', backgroundColor:'rgba(255,204,0,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 },
+  { label:'Load',  data: [], borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
+], { legend: true });
+
+makeChart('chart-solar', 'line', [], [
+  { label:'Solar kW', data: [], borderColor:'#ffcc00', backgroundColor:'rgba(255,204,0,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
+], { yScale: { min: 0, max: 12 } });
+
+makeChart('chart-load', 'line', [], [
+  { label:'Load kW', data: [], borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
+], { yScale: { min: 0, max: 12 } });
+
+makeChart('chart-battery', 'line', [], [
+  { label:'SOC kWh', data: [], borderColor:'#00ff88', backgroundColor:'rgba(0,255,136,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
+], { yScale: { min: 0, max: 20 } });
+
+makeChart('chart-temp', 'line', [], [
+  { label:'Temp °C', data: [], borderColor:'#ff6b35', backgroundColor:'rgba(255,107,53,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:2 }
+], { yScale: { min: 20, max: 45 } });
+
+makeChart('chart-alert', 'bar', [], [
+  { label:'Alert', data: [], backgroundColor:'rgba(255,51,102,0.6)', borderColor:'#ff3366', borderWidth:1, borderRadius:3 }
+], { yScale: { min: 0, max: 1 } });
+
+makeChart('chart-grid', 'bar', [], [
+  { label:'Grid kW', data: [], backgroundColor: [], borderRadius:3 }
 ]);
-makeChart('chart-load', 'line', CHART_LABELS, [
-  { label:'Load kW', data: STATE.history.load, borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
+
+makeChart('chart-grid-sm', 'bar', [], [
+  { label:'Grid kW', data: [], backgroundColor: [], borderRadius:3 }
 ]);
-makeChart('chart-temp', 'line', CHART_LABELS, [
-  { label:'Temp °C', data: STATE.history.temperature, borderColor:'#ff6b35', backgroundColor:'rgba(255,107,53,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
-]);
-makeChart('chart-alert', 'bar', CHART_LABELS, [
-  { label:'Alert', data: STATE.history.alert, backgroundColor:'rgba(255,51,102,0.6)', borderColor:'#ff3366', borderWidth:1, borderRadius:3 }
-]);
-makeChart('chart-grid-sm', 'bar', CHART_LABELS, [
-  { label:'Net Grid', data: STATE.history.grid, backgroundColor: STATE.history.grid.map(v => v >= 0 ? 'rgba(0,255,136,0.5)' : 'rgba(255,51,102,0.5)'), borderRadius:3 }
-]);
+
+makeChart('chart-threat', 'line', [], [
+  { label:'Threat', data: [], borderColor:'#ff3366', backgroundColor:'rgba(255,51,102,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
+], { yScale: { min: 0, max: 100 } });
   }, 50);
 }
 
