@@ -1825,7 +1825,8 @@ async function fetchRealAnomalies() {
         a.attack_type === 'DDoS' ||
         a.attack_type === 'SessionHijacking' ||
         a.signal === 'failed_login_count' ||
-        a.signal === 'login_attempt'
+        a.signal === 'login_attempt'  &&
+        a.resolved !== true
       );
       
       // Calculate Cyber Threat Score (max 100)
