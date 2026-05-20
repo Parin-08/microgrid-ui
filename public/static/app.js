@@ -1068,115 +1068,134 @@ function renderGridPage() {
 function renderSecurityPage() {
   const el = document.getElementById('page-security');
   if (!el) return;
-  const unreadCount = STATE.alerts.filter(a=>!a.read).length;
+  const d = STATE.data;
+  
   el.innerHTML = `
   <div style="padding:24px;">
     <div class="section-header">
       <div>
         <div class="section-title">Security Center</div>
-        <div class="section-subtitle">Cybersecurity monitoring — IDS, encryption, access control &amp; alerts</div>
-      </div>
-      <button class="btn btn-primary" onclick="markAllAlertsRead()"><i class="fas fa-check-double"></i> Mark All Read</button>
-    </div>
-
-    <div class="grid-4" style="margin-bottom:20px;">
-      <div class="kpi-card green">
-        <div class="kpi-icon green"><i class="fas fa-lock"></i></div>
-        <div class="kpi-value">TLS<span class="kpi-unit"> 1.3</span></div>
-        <div class="kpi-label">Encryption Protocol</div>
-        <div class="kpi-trend up"><i class="fas fa-check"></i> All channels secured</div>
-      </div>
-      <div class="kpi-card red">
-        <div class="kpi-icon red"><i class="fas fa-exclamation-triangle"></i></div>
-        <div class="kpi-value">${unreadCount}<span class="kpi-unit"> open</span></div>
-        <div class="kpi-label">Active Alerts</div>
-        <div class="kpi-trend ${unreadCount>0?'down':'up'}"><i class="fas fa-bell"></i> ${unreadCount} unread</div>
-      </div>
-      <div class="kpi-card cyan">
-        <div class="kpi-icon cyan"><i class="fas fa-network-wired"></i></div>
-        <div class="kpi-value">4<span class="kpi-unit"> conn</span></div>
-        <div class="kpi-label">Active Connections</div>
-        <div class="kpi-trend stable"><i class="fas fa-users"></i> Monitored</div>
-      </div>
-      <div class="kpi-card purple">
-        <div class="kpi-icon purple"><i class="fas fa-key"></i></div>
-        <div class="kpi-value">JWT<span class="kpi-unit"> valid</span></div>
-        <div class="kpi-label">Auth Token</div>
-        <div class="kpi-trend up"><i class="fas fa-clock"></i> Expires in 23m</div>
+        <div class="section-subtitle">Threat monitoring & attack simulation</div>
       </div>
     </div>
 
+    <!-- Row 1: Both Threat Scores Side by Side -->
     <div class="grid-2" style="margin-bottom:20px;">
+      
+      <!-- Physical Threat Card -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fas fa-shield-alt icon"></i> Encryption &amp; Security Modules</div>
-          <div class="status-indicator online">ALL SECURE</div>
+          <div class="card-title"><i class="fas fa-microchip icon"></i> Physical Threat Score</div>
         </div>
-        ${[
-          ['TLS 1.3 Transport Layer', true, 'AES-256-GCM'],
-          ['JWT Authentication', true, 'HS256 / RS256'],
-          ['MQTT over TLS (Port 8883)', true, 'Broker secured'],
-          ['Data Integrity Check (HMAC)', true, 'SHA-256'],
-          ['Role-Based Access Control', true, 'RBAC enforced'],
-          ['Intrusion Detection System', true, 'ML-based IDS'],
-          ['DDoS Protection', true, 'Rate limited'],
-          ['Firewall Rules', true, '32 rules active'],
-        ].map(([name, status, note]) => `
-          <div class="enc-status" style="${status?'':'background:rgba(255,51,102,0.07);border-color:rgba(255,51,102,0.2);color:var(--accent-red);'}">
-            <i class="fas ${status?'fa-lock':'fa-lock-open'}"></i>
-            <span style="flex:1;">${name}</span>
-            <span style="font-size:11px;opacity:0.7;">${note}</span>
-          </div>`).join('')}
+        <div style="text-align:center; padding:20px;">
+          <div style="font-size:64px; font-weight:800; color:${d.threatScore > 50 ? '#ff3366' : '#00ff88'};" id="threat-score-large">${d.threatScore || 18}</div>
+          <div style="font-size:14px; color:var(--text-muted);">/ 100</div>
+          <div class="threat-meter" style="margin-top:16px;">
+            <div class="threat-fill" style="width:${d.threatScore || 18}%; height:10px; background:linear-gradient(90deg,#00ff88,#ffcc00,#ff3366); border-radius:5px;"></div>
+          </div>
+          <div class="status-indicator ${d.threatScore > 50 ? 'offline' : 'online'}" style="margin-top:16px; display:inline-block;">
+            ${d.threatScore > 50 ? '⚠ THREAT ACTIVE' : '✓ SYSTEM SECURE'}
+          </div>
+        </div>
       </div>
+
+      <!-- Cyber Threat Card -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fas fa-bell icon"></i> Security Alerts</div>
-          <span style="font-size:12px;color:var(--text-muted);">${STATE.alerts.length} total</span>
+          <div class="card-title"><i class="fas fa-shield-alt icon"></i> Cyber Threat Score</div>
         </div>
-        <div style="max-height:380px;overflow-y:auto;">
-          ${STATE.alerts.map(a => `
-            <div class="alert-item ${a.type}" onclick="markAlertRead(${a.id})" style="${a.read?'opacity:0.5':''}">
-              <div class="alert-icon"><i class="fas ${a.type==='critical'?'fa-radiation-alt':a.type==='warning'?'fa-exclamation-triangle':a.type==='success'?'fa-check-circle':'fa-info-circle'}"></i></div>
-              <div style="flex:1;">
-                <div class="alert-title">${a.read?'':'<span style="width:7px;height:7px;background:var(--accent-red);border-radius:50%;display:inline-block;margin-right:6px;"></span>'}${a.title}</div>
-                <div class="alert-desc">${a.desc}</div>
-              </div>
-              <div class="alert-time">${a.time}</div>
-            </div>`).join('')}
+        <div style="text-align:center; padding:20px;">
+          <div style="font-size:64px; font-weight:800; color:#a855f7;" id="cyber-threat-score">${d.cyberThreatScore || 0}</div>
+          <div style="font-size:14px; color:var(--text-muted);">/ 100</div>
+          <div class="threat-meter" style="margin-top:16px;">
+            <div class="threat-fill" id="cyber-threat-fill" style="width:${d.cyberThreatScore || 0}%; background:linear-gradient(90deg,#a855f7,#d946ef); height:10px; border-radius:5px;"></div>
+          </div>
+          <div class="status-indicator ${(d.cyberThreatScore || 0) > 50 ? 'offline' : 'online'}" style="margin-top:16px; display:inline-block;">
+            ${(d.cyberThreatScore || 0) > 50 ? '⚠ CYBER THREAT' : '✓ CYBER SECURE'}
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="card">
+    <!-- Row 2: Failed Login Chart (Full Width) -->
+    <div class="card" style="margin-bottom:20px;">
       <div class="card-header">
-        <div class="card-title"><i class="fas fa-satellite-dish icon"></i> MQTT Communication &amp; Protocol Security</div>
+        <div class="card-title"><i class="fas fa-exclamation-triangle icon"></i> Failed Login Attempts (24h)</div>
       </div>
-      <div class="grid-3">
-        <div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Broker Status</div>
-          <div class="data-row"><span class="data-row-label">Host</span><span class="data-row-value cyan">broker.microgrid.local</span></div>
-          <div class="data-row"><span class="data-row-label">Port</span><span class="data-row-value">8883 (TLS)</span></div>
-          <div class="data-row"><span class="data-row-label">Protocol</span><span class="data-row-value cyan">MQTT v5.0</span></div>
-          <div class="data-row"><span class="data-row-label">Status</span><span class="data-row-value green">✓ Connected</span></div>
+      <div class="chart-wrapper" style="height:200px;">
+        <canvas id="chart-failed-logins"></canvas>
+      </div>
+    </div>
+
+    <!-- Row 3: Attack Simulation + Recent Alerts Side by Side -->
+    <div class="grid-2">
+      
+      <!-- Attack Simulation Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-flask icon"></i> Attack Simulation</div>
+          <span style="font-size:11px;color:var(--text-muted);">Test response</span>
         </div>
-        <div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Active Subscriptions</div>
-          ${['microgrid/solar/+','microgrid/battery/#','microgrid/grid/status','microgrid/alerts','microgrid/security/ids'].map(t=>`
-            <div class="data-row"><span class="data-row-label" style="font-family:'JetBrains Mono',monospace;font-size:12px;">${t}</span><span class="data-row-value green" style="font-size:11px;">QoS 2</span></div>`).join('')}
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          ${[
+            { name:'FDIA', icon:'fa-database', color:'#ff3366', desc:'False data injection', action:"simulateAttack('FDIA')" },
+            { name:'DoS', icon:'fa-tachometer-alt', color:'#ffcc00', desc:'Denial of service', action:"simulateAttack('DoS')" },
+            { name:'Brute Force', icon:'fa-user-secret', color:'#a855f7', desc:'Password attack', action:"simulateAttack('BruteForce')" },
+            { name:'MITM', icon:'fa-exchange-alt', color:'#ff6b35', desc:'Man-in-the-middle', action:"simulateAttack('MITM')" },
+          ].map(s=>`
+            <div style="padding:12px; background:rgba(0,0,0,0.3); border-radius:10px; border-left:3px solid ${s.color}; display:flex; align-items:center; justify-content:space-between;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="font-size:18px; color:${s.color};"><i class="fas ${s.icon}"></i></div>
+                <div>
+                  <div style="font-weight:600; font-size:13px;">${s.name}</div>
+                  <div style="font-size:11px; color:var(--text-muted);">${s.desc}</div>
+                </div>
+              </div>
+              <button class="btn btn-danger btn-sm" onclick="${s.action}" style="background:${s.color}; border:none; padding:5px 12px; font-size:11px;">
+                <i class="fas fa-play"></i> Run
+              </button>
+            </div>
+          `).join('')}
         </div>
-        <div>
-          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px;">Message Statistics</div>
-          <div class="data-row"><span class="data-row-label">Msgs Received</span><span class="data-row-value">14,827</span></div>
-          <div class="data-row"><span class="data-row-label">Msgs Sent</span><span class="data-row-value">8,392</span></div>
-          <div class="data-row"><span class="data-row-label">Dropped</span><span class="data-row-value green">0</span></div>
-          <div class="data-row"><span class="data-row-label">Latency</span><span class="data-row-value cyan">12 ms</span></div>
-          <div class="data-row"><span class="data-row-label">Uptime</span><span class="data-row-value green">99.97%</span></div>
+      </div>
+
+      <!-- Recent Alerts Card -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-bell icon"></i> Recent Alerts</div>
+          <button class="btn btn-primary btn-sm" onclick="markAllAlertsRead()" style="padding:4px 10px; font-size:11px;">Mark Read</button>
+        </div>
+        <div style="max-height:350px; overflow-y:auto;">
+          ${STATE.alerts.slice(0, 5).map(a => `
+            <div class="alert-item ${a.type}" onclick="markAlertRead(${a.id})" style="${a.read?'opacity:0.5':''}; padding:10px; margin-bottom:8px;">
+              <div class="alert-icon"><i class="fas ${a.type==='critical'?'fa-radiation-alt':a.type==='warning'?'fa-exclamation-triangle':'fa-info-circle'}"></i></div>
+              <div style="flex:1;">
+                <div class="alert-title" style="font-size:12px;">${a.read?'':'🔴 '}${a.title}</div>
+                <div class="alert-desc" style="font-size:11px;">${a.desc.substring(0, 60)}${a.desc.length > 60 ? '...' : ''}</div>
+              </div>
+              <div class="alert-time" style="font-size:10px;">${a.time}</div>
+            </div>
+          `).join('')}
+          ${STATE.alerts.length === 0 ? '<div style="text-align:center; padding:20px; color:var(--text-muted);">No alerts</div>' : ''}
         </div>
       </div>
     </div>
   </div>`;
-}
 
+  // Create failed logins chart
+  setTimeout(() => {
+    const cyberScore = STATE.data.cyberThreatScore || 0;
+    const baseAttempts = Math.floor(cyberScore / 10);
+    const failedData = Array.from({length: 24}, (_, i) => 
+      Math.max(0, baseAttempts + Math.floor(Math.random() * 5) - 2)
+    );
+    makeChart('chart-failed-logins', 'bar', 
+      Array.from({length: 24}, (_, i) => `${i}h`),
+      [{ label:'Failed Logins', data: failedData, backgroundColor: 'rgba(255,51,102,0.6)', borderRadius: 4 }],
+      { yScale: { min: 0, max: 15 } }
+    );
+  }, 50);
+}
 function markAlertRead(id) {
   const a = STATE.alerts.find(x=>x.id===id);
   if (a) a.read = true;
