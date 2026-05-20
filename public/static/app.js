@@ -1936,4 +1936,32 @@ async function createAnomalyInBackend(attackType, hour) {
   } catch(e) {
     console.error('Failed to create anomaly:', e);
   }
+  async function simulateAttack(type) {
+  // Send attack to backend
+  await fetch('https://microgrid-final.onrender.com/anomalies/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      device_id: 'microgrid-ui',
+      signal: 'attack_simulation',
+      value: 1,
+      severity: 'CRITICAL',
+      attack_type: type,
+      message: `Simulated ${type} attack triggered`
+    })
+  });
+  
+  // Update frontend threat score
+  STATE.data.threatScore = Math.min(100, (STATE.data.threatScore || 18) + 30);
+  
+  // Refresh anomalies
+  await fetchRealAnomalies();
+  
+  // Refresh current page
+  if (STATE.currentPage === 'anomaly') renderAnomalyPage();
+  if (STATE.currentPage === 'security') renderSecurityPage();
+  
+  addLog('critical', 'security', `[SIMULATION] ${type} attack initiated`);
+  addAlert('critical', `[SIMULATION] ${type} Attack`, `Simulated ${type} attack triggered`);
+}
 }
