@@ -485,7 +485,36 @@ function updateTopbarPills() {
     pill.className = `status-pill ${d.mode === 'island' ? 'warning' : 'info'}`;
   }
 }
-
+function updateLiveValues() {
+  const d = STATE.data;
+  
+  const solarEl = document.getElementById('live-solar');
+  if (solarEl) solarEl.innerHTML = `${(d.solar || 0).toFixed(1)} <span class="kpi-unit">kW</span>`;
+  
+  const batteryEl = document.getElementById('live-battery');
+  if (batteryEl) batteryEl.innerHTML = `${(d.battery || 0).toFixed(1)} <span class="kpi-unit">kWh</span>`;
+  
+  const loadEl = document.getElementById('live-load');
+  if (loadEl) loadEl.innerHTML = `${(d.load || 0).toFixed(1)} <span class="kpi-unit">kW</span>`;
+  
+  const gridExpEl = document.getElementById('live-grid-exp');
+  if (gridExpEl) gridExpEl.innerHTML = `${(d.gridExport || 0).toFixed(1)} <span class="kpi-unit">kW</span>`;
+  
+  const gridImpEl = document.getElementById('live-grid-imp');
+  if (gridImpEl) gridImpEl.innerHTML = `${(d.gridImport || 0).toFixed(1)} <span class="kpi-unit">kW</span>`;
+  
+  const tempEl = document.getElementById('live-temp');
+  if (tempEl) tempEl.innerHTML = `${(d.temperature || 0).toFixed(1)} <span class="kpi-unit">°C</span>`;
+  
+  const battFill = document.getElementById('battery-fill');
+  if (battFill) {
+    const battPct = Math.min(100, (d.battery / 10) * 100);
+    battFill.style.width = `${battPct.toFixed(0)}%`;
+  }
+  
+  const battText = document.getElementById('battery-bar-text');
+  if (battText) battText.textContent = `${(d.battery || 0).toFixed(1)} kWh`;
+}
 // ── Live Value Updates ─────────────────────────────────
 function updateLiveCharts() {
   const ci = STATE.chartInstances;
