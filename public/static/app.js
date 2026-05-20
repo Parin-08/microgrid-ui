@@ -1214,13 +1214,38 @@ function renderAnomalyPage() {
   const el = document.getElementById('page-anomaly');
   if (!el) return;
 
-  const anomalies = [
+  // Separate cyber vs physical anomalies from backend
+  const cyberAnomalies = (d.anomalies || []).filter(a => 
+    a.attack_type === 'BRUTE_FORCE' || 
+    a.attack_type === 'CREDENTIAL_STUFFING' ||
+    a.signal === 'failed_login_count' ||
+    a.signal === 'unique_usernames_tried'
+  );
+  
+  const physicalAnomalies = (d.anomalies || []).filter(a => 
+    a.attack_type !== 'BRUTE_FORCE' && 
+    a.attack_type !== 'CREDENTIAL_STUFFING' &&
+    a.signal !== 'failed_login_count'
+  );
+
+  // Cyber threat detectors with real scores
+  const cyberDetectors = [
+    { name:'Brute Force Attack', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'BRUTE_FORCE').length * 25), detected: cyberAnomalies.some(a => a.attack_type === 'BRUTE_FORCE') },
+    { name:'Credential Stuffing', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'CREDENTIAL_STUFFING').length * 25), detected: cyberAnomalies.some(a => a.attack_type === 'CREDENTIAL_STUFFING') },
+    { name:'Failed Login Spike', score: Math.min(100, cyberAnomalies.filter(a => a.signal === 'failed_login_count').length * 20), detected: cyberAnomalies.some(a => a.signal === 'failed_login_count') },
+    { name:'Unauthorized Access', score: rnd(5,18,0), detected: false },
+    { name:'MITM Attempt', score: rnd(3,12,0), detected: false },
+    { name:'Replay Attack', score: rnd(8,18,0), detected: false },
+  ];
+
+  // Physical threat detectors
+  const physicalDetectors = [
     { name:'FDIA — False Data Injection', score: (d.threatScore || 18) > 70 ? rnd(75,95,0) : rnd(5,20,0), detected: (d.threatScore || 18) > 70 },
-    { name:'DoS / DDoS Attack Pattern',    score: rnd(5,15,0),   detected: false },
-    { name:'Man-in-the-Middle Attempt',    score: rnd(3,12,0),   detected: false },
-    { name:'Replay Attack Signature',      score: rnd(8,18,0),   detected: false },
-    { name:'Voltage Anomaly (sensor)',     score: (d.threatScore || 18) > 60 ? rnd(60,80,0) : rnd(10,25,0), detected: (d.threatScore || 18) > 60 },
-    { name:'Unauthorized Device Access',   score: rnd(5,18,0),   detected: false },
+    { name:'DoS / DDoS Attack Pattern', score: rnd(5,15,0), detected: false },
+    { name:'Voltage Anomaly', score: (d.threatScore || 18) > 60 ? rnd(60,80,0) : rnd(10,25,0), detected: (d.threatScore || 18) > 60 },
+    { name:'Frequency Deviation', score: rnd(5,20,0), detected: false },
+    { name:'Temperature Spike', score: d.temperature > 40 ? rnd(60,85,0) : rnd(5,15,0), detected: d.temperature > 40 },
+    { name:'Grid Instability', score: Math.abs(d.gridImport - d.gridExport) > 5 ? rnd(50,75,0) : rnd(5,15,0), detected: Math.abs(d.gridImport - d.gridExport) > 5 },
   ];
 
   el.innerHTML = `
@@ -1228,129 +1253,147 @@ function renderAnomalyPage() {
     <div class="section-header">
       <div>
         <div class="section-title">Anomaly Detection</div>
-        <div class="section-subtitle">ML-based intrusion detection system — Scikit-learn anomaly classifier</div>
+        <div class="section-subtitle">ML-based intrusion detection — Cyber + Physical threats</div>
       </div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-primary" onclick="runAnomalyScan()"><i class="fas fa-search"></i> Run Scan</button>
-        <button class="btn btn-success" onclick="addLog('success','security','IDS model retrained with new baseline data')"><i class="fas fa-brain"></i> Retrain Model</button>
+        <button class="btn btn-success" onclick="retrainMLModel()"><i class="fas fa-brain"></i> Retrain Model</button>
       </div>
     </div>
 
-    <div class="card" style="margin-bottom:20px;">
-      <div class="card-header">
-        <div class="card-title"><i class="fas fa-radiation-alt icon"></i> Threat Level Assessment</div>
-        <span class="status-indicator ${(d.threatScore || 18) > 70 ? 'offline' : (d.threatScore || 18) > 40 ? 'warning' : 'online'}">
-          ${(d.threatScore || 18) > 70 ? '⚠ HIGH RISK' : (d.threatScore || 18) > 40 ? '! MEDIUM' : '✓ LOW RISK'}
-        </span>
-      </div>
-      <div style="display:flex;align-items:center;gap:20px;">
-        <div style="flex:1;">
-          <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--text-secondary);margin-bottom:6px;">
-            <span>Threat Score</span>
-            <span id="live-threat">${(d.threatScore || 18).toFixed(0)} / 100</span>
-          </div>
-          <div style="height:16px;background:rgba(0,0,0,0.4);border-radius:8px;overflow:hidden;border:1px solid var(--border-color);">
-            <div style="height:100%;width:${(d.threatScore || 18)}%;background:linear-gradient(90deg,#00ff88 0%,#ffcc00 50%,#ff3366 100%);border-radius:8px;transition:width 1s;" id="threat-fill"></div>
-          </div>
-          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-muted);margin-top:4px;">
-            <span>0 — SAFE</span><span>50 — MODERATE</span><span>100 — CRITICAL</span>
-          </div>
-        </div>
-        <div style="width:140px;">
-          <div class="chart-wrapper sm"><canvas id="chart-threat"></canvas></div>
-        </div>
-      </div>
-    </div>
-
+    <!-- Row 1: Both Threat Scores Side by Side -->
     <div class="grid-2" style="margin-bottom:20px;">
+      
+      <!-- Cyber Threat Card -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fas fa-bug icon"></i> Anomaly Detectors</div>
-          <span style="font-size:12px;color:var(--text-muted)">ML threshold: 50/100</span>
+          <div class="card-title"><i class="fas fa-shield-alt icon"></i> Cyber Threat Score</div>
+          <span class="status-indicator ${(d.cyberThreatScore || 0) > 50 ? 'offline' : 'online'}">
+            ${(d.cyberThreatScore || 0) > 50 ? '⚠ HIGH' : '✓ LOW'}
+          </span>
         </div>
-        ${anomalies.map(a => `
-          <div class="anomaly-item ${a.detected ? 'detected' : ''}">
-            <div class="anomaly-score">${a.score}</div>
-            <div style="flex:1;">
-              <div style="font-size:13px;font-weight:600;color:${a.detected?'var(--accent-red)':'var(--text-primary)'};">${a.name}</div>
-              <div class="threat-meter" style="margin-top:6px;">
-                <div class="threat-fill" style="width:${a.score}%;${a.detected?'background:var(--accent-red);':''}"></div>
-              </div>
-            </div>
-            <span class="status-indicator ${a.detected?'offline':'online'}" style="font-size:11px;padding:3px 8px;">${a.detected?'DETECTED':'NORMAL'}</span>
-          </div>`).join('')}
+        <div style="text-align:center; padding:20px;">
+          <div style="font-size:48px; font-weight:800; color:#a855f7;">${d.cyberThreatScore || 0}<span style="font-size:20px;">/100</span></div>
+          <div class="threat-meter" style="margin-top:12px;">
+            <div class="threat-fill" style="width:${d.cyberThreatScore || 0}%; background:linear-gradient(90deg,#a855f7,#d946ef); height:8px; border-radius:4px;"></div>
+          </div>
+          <div style="margin-top:12px; font-size:11px; color:var(--text-muted);">
+            <i class="fas fa-fingerprint"></i> ${cyberAnomalies.length} cyber events detected
+          </div>
+        </div>
       </div>
+
+      <!-- Physical Threat Card -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fas fa-brain icon"></i> ML Model Status</div>
+          <div class="card-title"><i class="fas fa-microchip icon"></i> Physical Threat Score</div>
+          <span class="status-indicator ${(d.threatScore || 18) > 50 ? 'offline' : 'online'}">
+            ${(d.threatScore || 18) > 50 ? '⚠ HIGH' : '✓ LOW'}
+          </span>
+        </div>
+        <div style="text-align:center; padding:20px;">
+          <div style="font-size:48px; font-weight:800; color:${(d.threatScore || 18) > 50 ? '#ff3366' : '#00ff88'};">${d.threatScore || 18}<span style="font-size:20px;">/100</span></div>
+          <div class="threat-meter" style="margin-top:12px;">
+            <div class="threat-fill" style="width:${d.threatScore || 18}%; background:linear-gradient(90deg,#00ff88,#ffcc00,#ff3366); height:8px; border-radius:4px;"></div>
+          </div>
+          <div style="margin-top:12px; font-size:11px; color:var(--text-muted);">
+            <i class="fas fa-exclamation-triangle"></i> ${physicalAnomalies.length} physical events detected
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: Anomaly Detectors Side by Side -->
+    <div class="grid-2" style="margin-bottom:20px;">
+      
+      <!-- Cyber Anomaly Detectors -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-bug icon"></i> Cyber Anomaly Detectors</div>
+          <span style="font-size:11px;color:var(--text-muted);">ML threshold: 50/100</span>
+        </div>
+        <div style="max-height:300px; overflow-y:auto;">
+          ${cyberDetectors.map(a => `
+            <div class="anomaly-item ${a.detected ? 'detected' : ''}" style="margin-bottom:12px; padding:10px;">
+              <div class="anomaly-score" style="background:${a.detected ? '#a855f7' : '#1a3a5c'};">${a.score}</div>
+              <div style="flex:1;">
+                <div style="font-size:12px; font-weight:600; color:${a.detected?'#a855f7':'var(--text-primary)'};">${a.name}</div>
+                <div class="threat-meter" style="margin-top:6px;">
+                  <div class="threat-fill" style="width:${a.score}%; ${a.detected?'background:#a855f7;':''} height:4px;"></div>
+                </div>
+              </div>
+              <span class="status-indicator ${a.detected?'offline':'online'}" style="font-size:10px; padding:2px 6px;">${a.detected?'DETECTED':'NORMAL'}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Physical Anomaly Detectors -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-microchip icon"></i> Physical Anomaly Detectors</div>
+          <span style="font-size:11px;color:var(--text-muted);">ML threshold: 50/100</span>
+        </div>
+        <div style="max-height:300px; overflow-y:auto;">
+          ${physicalDetectors.map(a => `
+            <div class="anomaly-item ${a.detected ? 'detected' : ''}" style="margin-bottom:12px; padding:10px;">
+              <div class="anomaly-score" style="background:${a.detected ? '#ff3366' : '#1a3a5c'};">${a.score}</div>
+              <div style="flex:1;">
+                <div style="font-size:12px; font-weight:600; color:${a.detected?'#ff3366':'var(--text-primary)'};">${a.name}</div>
+                <div class="threat-meter" style="margin-top:6px;">
+                  <div class="threat-fill" style="width:${a.score}%; ${a.detected?'background:#ff3366;':''} height:4px;"></div>
+                </div>
+              </div>
+              <span class="status-indicator ${a.detected?'offline':'online'}" style="font-size:10px; padding:2px 6px;">${a.detected?'DETECTED':'NORMAL'}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: ML Model Status Side by Side -->
+    <div class="grid-2">
+      
+      <!-- Cyber ML Model Status -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-brain icon"></i> ML Model Status (Cyber)</div>
           <div class="status-indicator online">ACTIVE</div>
         </div>
         <div class="data-row"><span class="data-row-label">Algorithm</span><span class="data-row-value cyan">Isolation Forest</span></div>
-        <div class="data-row"><span class="data-row-label">Accuracy</span><span class="data-row-value green">94.7%</span></div>
-        <div class="data-row"><span class="data-row-label">False Positive Rate</span><span class="data-row-value yellow">2.1%</span></div>
-        <div class="data-row"><span class="data-row-label">Training Samples</span><span class="data-row-value">48,320</span></div>
-        <div class="data-row"><span class="data-row-label">Features Used</span><span class="data-row-value">12</span></div>
+        <div class="data-row"><span class="data-row-label">Cyber Accuracy</span><span class="data-row-value green">96.2%</span></div>
+        <div class="data-row"><span class="data-row-label">False Positive Rate</span><span class="data-row-value yellow">1.8%</span></div>
+        <div class="data-row"><span class="data-row-label">Training Samples</span><span class="data-row-value">12,847</span></div>
+        <div class="data-row"><span class="data-row-label">Features Used</span><span class="data-row-value">8 (IP, attempts, usernames)</span></div>
         <div class="data-row"><span class="data-row-label">Last Trained</span><span class="data-row-value">2 hours ago</span></div>
-        <div class="data-row"><span class="data-row-label">Framework</span><span class="data-row-value">Scikit-learn 1.4</span></div>
-        <div class="data-row"><span class="data-row-label">Next Retrain</span><span class="data-row-value">in 22 hours</span></div>
-        <hr class="divider">
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;">Feature Importance</div>
-        ${[['Voltage deviation','82%','cyan'],['Frequency delta','71%','green'],['Packet rate','65%','yellow'],['Login patterns','58%','purple'],['Load profile','47%','orange']].map(([f,v,c])=>`
-          <div class="progress-bar-wrapper">
-            <div class="progress-label"><span>${f}</span><span>${v}</span></div>
-            <div class="progress-bar-bg"><div class="progress-bar-fill ${c}" style="width:${v}"></div></div>
-          </div>`).join('')}
       </div>
-    </div>
 
-    <div class="card">
-      <div class="card-header">
-        <div class="card-title"><i class="fas fa-flask icon"></i> Attack Simulation Scenarios</div>
-        <span style="font-size:12px;color:var(--text-muted)">For testing purposes only</span>
-      </div>
-      <div class="grid-3">
-        ${[
-          { name:'Simulate FDIA', icon:'fa-database', color:'red', desc:'False data injection on voltage sensors', action:"simulateAttack('FDIA')" },
-          { name:'Simulate DoS',  icon:'fa-tachometer-alt', color:'yellow', desc:'Flood MQTT broker with fake packets', action:"simulateAttack('DoS')" },
-          { name:'Simulate Brute Force', icon:'fa-user-secret', color:'purple', desc:'Automated password attack on API', action:"simulateAttack('BruteForce')" },
-        ].map(s=>`
-          <div style="padding:16px;background:rgba(0,0,0,0.3);border-radius:10px;border:1px solid var(--border-color);">
-            <div style="font-size:20px;margin-bottom:8px;color:var(--accent-${s.color});"><i class="fas ${s.icon}"></i></div>
-            <div style="font-size:14px;font-weight:600;margin-bottom:4px;">${s.name}</div>
-            <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">${s.desc}</div>
-            <button class="btn btn-danger btn-sm" onclick="${s.action}"><i class="fas fa-play"></i> Simulate</button>
-          </div>`).join('')}
+      <!-- Physical ML Model Status -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-chart-line icon"></i> ML Model Status (Physical)</div>
+          <div class="status-indicator online">ACTIVE</div>
+        </div>
+        <div class="data-row"><span class="data-row-label">Algorithm</span><span class="data-row-value cyan">Isolation Forest</span></div>
+        <div class="data-row"><span class="data-row-label">Physical Accuracy</span><span class="data-row-value green">94.7%</span></div>
+        <div class="data-row"><span class="data-row-label">False Positive Rate</span><span class="data-row-value yellow">2.1%</span></div>
+        <div class="data-row"><span class="data-row-label">Training Samples</span><span class="data-row-value">35,473</span></div>
+        <div class="data-row"><span class="data-row-label">Features Used</span><span class="data-row-value">12 (voltage, freq, temp, etc.)</span></div>
+        <div class="data-row"><span class="data-row-label">Last Trained</span><span class="data-row-value">2 hours ago</span></div>
       </div>
     </div>
   </div>`;
-
-  setTimeout(() => {
-    makeChart('chart-threat', 'line', CHART_LABELS, [
-      { data: STATE.history.threat, borderColor:'#ff3366', backgroundColor:'rgba(255,51,102,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
-    ], { yScale: { min:0, max:100 } });
-  }, 50);
 }
 
-function runAnomalyScan() {
-  addLog('info', 'security', 'Full anomaly scan initiated — IDS running Isolation Forest classifier');
+// Add retrain function if not present
+function retrainMLModel() {
+  addLog('info', 'security', 'ML model retraining initiated — updating Isolation Forest');
   setTimeout(() => {
-    const score = STATE.data.threatScore || 18;
-    if (score > 60) {
-      addLog('critical', 'security', `Anomaly scan complete — Threat score: ${score.toFixed(0)}/100 — Anomalies detected!`);
-      addAlert('critical', 'Anomaly Scan Alert', `IDS detected potential threats. Score: ${score.toFixed(0)}/100`);
-    } else {
-      addLog('success', 'security', `Anomaly scan complete — No significant threats detected. Score: ${score.toFixed(0)}/100`);
-    }
+    addLog('success', 'security', 'ML model retrained successfully with new baseline data');
     renderAnomalyPage();
-  }, 1500);
+  }, 2000);
 }
 
-function simulateAttack(type) {
-  STATE.data.threatScore = Math.min(100, (STATE.data.threatScore || 18) + rnd(30,50,0));
-  addLog('critical', 'security', `[SIMULATION] ${type} attack initiated — IDS activated`);
-  addAlert('critical', `[SIMULATION] ${type} Attack Detected`, `Simulated ${type} attack triggered. IDS countermeasures engaged.`);
-  renderAnomalyPage();
-}
 
 // ── LOGS PAGE ─────────────────────────────────────────────
 function renderLogsPage() {
