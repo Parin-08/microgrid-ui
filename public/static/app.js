@@ -290,12 +290,14 @@ async function handleLogin() {
   
   // Reset cyber threat score on successful login
   STATE.data.cyberThreatScore = 0;
+  STATE.data.anomalies = [];
   await fetchRealAnomalies();
   
   addLog('success', 'auth', `User "${username}" authenticated via backend`);
   renderApp();
   initMQTT();
   startRealTimeData();
+
 }
 
 // ── Main App Shell ────────────────────────────────────────
