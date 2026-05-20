@@ -81,7 +81,7 @@ const ROLE_PERMISSIONS = {
   operator: ['dashboard','energy','security','anomaly','logs','grid'],
   viewer:   ['dashboard','energy','logs'],
 };
-
+const CHART_LABELS = Array.from({length: 100}, (_, i) => `T-${100-i}`);
 // Prepopulate history arrays
 for (let i = 0; i < 100; i++) {
   STATE.history.solar.push(0);
