@@ -514,87 +514,124 @@ function updateLiveValues() {
   
   const battText = document.getElementById('battery-bar-text');
   if (battText) battText.textContent = `${(d.battery || 0).toFixed(1)} kWh`;
+// Add these lines inside updateLiveValues()
+const cyberThreatEl = document.getElementById('live-cyber-threat');
+if (cyberThreatEl) cyberThreatEl.textContent = `${(STATE.data.cyberThreatScore || 0).toFixed(0)}/100`;
+
+const cyberFill = document.getElementById('cyber-threat-fill-dash');
+if (cyberFill) cyberFill.style.width = `${(STATE.data.cyberThreatScore || 0)}%`;
+
+const cyberStatus = document.getElementById('cyber-status-badge');
+if (cyberStatus) {
+  if (STATE.data.cyberThreatScore > 50) {
+    cyberStatus.textContent = '⚠ CYBER THREAT';
+    cyberStatus.className = 'status-indicator offline';
+  } else {
+    cyberStatus.textContent = '✓ CYBER SECURE';
+    cyberStatus.className = 'status-indicator online';
+  }
+}
+
+const activeAttackEl = document.getElementById('active-cyber-attack');
+if (activeAttackEl) activeAttackEl.textContent = getActiveCyberAttack();
 }
 // ── Live Value Updates ─────────────────────────────────
 function updateLiveCharts() {
   const ci = STATE.chartInstances;
-  const h  = STATE.history;
+  const h = STATE.history;
 
-  let _chartUpdateTimer = null;
-  const scheduleChartUpdate = () => {
-    clearTimeout(_chartUpdateTimer);
-    _chartUpdateTimer = setTimeout(updateLiveCharts, 300);
+  // Fixed 24-hour array (always Hr 0 to Hr 23)
+  const toFixedArray = (byHour) => {
+    const arr = new Array(24).fill(0);
+    if (!byHour) return arr;
+    for (let hr = 0; hr <= 23; hr++) {
+      if (byHour[hr] !== undefined) arr[hr] = byHour[hr];
+    }
+    return arr;
   };
 
-  const toSortedArrays = (byHour) => {
-    if (!byHour || typeof byHour !== 'object') return { labels: [], data: [] };
-    const hours = Object.keys(byHour).map(Number).filter(n => !isNaN(n)).sort((a, b) => a - b);
-    return {
-      labels: hours.map(hr => `Hr ${hr}`),
-      data:   hours.map(hr => byHour[hr])
-    };
-  };
+  // Fixed labels (always Hr 0 to Hr 23)
+  const fixedLabels = Array.from({length: 24}, (_, i) => `Hr ${i}`);
 
-  const pushKeyed = (id, byHour, yOpts = {}) => {
-    const c = ci[id];
-    if (!c) return;
-    const { labels, data } = toSortedArrays(byHour);
-    if (data.length === 0) return;
-    c.data.labels = labels;
-    c.data.datasets[0].data = data;
-    c.options.scales.y = {
-      beginAtZero: yOpts.beginAtZero ?? false,
-      min: yOpts.min ?? undefined,
-      max: yOpts.max ?? undefined,
-      grid: { color: 'rgba(26,58,92,0.4)' },
-      ticks: { color: '#4a6a8a', font: { size: 10 } }
-    };
-    c.options.scales.x.ticks = { maxTicksLimit: 24, maxRotation: 0, color: '#4a6a8a' };
-    c.update('none');
-  };
+  // Update Solar
+  const solarChart = ci['chart-solar'];
+  if (solarChart) {
+    solarChart.data.labels = fixedLabels;
+    solarChart.data.datasets[0].data = toFixedArray(h.solarByHour);
+    solarChart.update('none');
+  }
 
-  // Solar — matches MATLAB: line, 0–12 kW, beginAtZero
-  pushKeyed('chart-solar', h.solarByHour, { beginAtZero: true, min: 0, max: 12 });
+  // Update Load
+  const loadChart = ci['chart-load'];
+  if (loadChart) {
+    loadChart.data.labels = fixedLabels;
+    loadChart.data.datasets[0].data = toFixedArray(h.loadByHour);
+    loadChart.update('none');
+  }
 
-  // Load — matches MATLAB: line, 0–12 kW
-  pushKeyed('chart-load', h.loadByHour, { beginAtZero: true, min: 0, max: 12 });
+  // Update Battery
+  const batteryChart = ci['chart-battery'];
+  if (batteryChart) {
+    batteryChart.data.labels = fixedLabels;
+    batteryChart.data.datasets[0].data = toFixedArray(h.batteryByHour);
+    batteryChart.update('none');
+  }
 
-  // Battery — matches MATLAB: line, 0–20 kWh
-  pushKeyed('chart-battery', h.batteryByHour, { beginAtZero: true, min: 0, max: 20 });
+  // Update Temperature
+  const tempChart = ci['chart-temp'];
+  if (tempChart) {
+    tempChart.data.labels = fixedLabels;
+    tempChart.data.datasets[0].data = toFixedArray(h.tempByHour);
+    tempChart.update('none');
+  }
 
-  // Temperature — matches MATLAB: line, 20–45°C
-  pushKeyed('chart-temp', h.tempByHour, { beginAtZero: false, min: 20, max: 45 });
+  // Update Alert
+  const alertChart = ci['chart-alert'];
+  if (alertChart) {
+    alertChart.data.labels = fixedLabels;
+    alertChart.data.datasets[0].data = toFixedArray(h.alertByHour);
+    alertChart.update('none');
+  }
 
-  // Alert — matches MATLAB: bar, 0–1
-  pushKeyed('chart-alert', h.alertByHour, { beginAtZero: true, min: 0, max: 1 });
-
-  // Energy page charts
-  pushKeyed('chart-energy-solar', h.solarByHour, { beginAtZero: true, min: 0, max: 12 });
-  pushKeyed('chart-energy-load',  h.loadByHour,  { beginAtZero: true, min: 0, max: 12 });
-
-  // Grid — bar chart with green/red colors, matches MATLAB
-  ['chart-grid', 'chart-grid-sm'].forEach(id => {
-    const c = ci[id];
-    if (!c) return;
-    const { labels, data } = toSortedArrays(h.gridByHour);
-    if (data.length === 0) return;
-    c.data.labels = labels;
-    c.data.datasets[0].data = data;
-    c.data.datasets[0].backgroundColor = data.map(
-      v => v >= 0 ? 'rgba(255,80,80,0.7)' : 'rgba(0,255,136,0.7)'  // red=import, green=export like MATLAB
+  // Update Grid
+  const gridData = toFixedArray(h.gridByHour);
+  const gridChart = ci['chart-grid'];
+  if (gridChart) {
+    gridChart.data.labels = fixedLabels;
+    gridChart.data.datasets[0].data = gridData;
+    gridChart.data.datasets[0].backgroundColor = gridData.map(v => 
+      v > 0 ? 'rgba(255,80,80,0.7)' : (v < 0 ? 'rgba(0,255,136,0.7)' : 'rgba(100,100,100,0.5)')
     );
-    c.options.scales.y = {
-      beginAtZero: true,
-      min: 0,
-      max: 12,
-      grid: { color: 'rgba(26,58,92,0.4)' },
-      ticks: { color: '#4a6a8a', font: { size: 10 } }
-    };
-    c.options.scales.x.ticks = { maxTicksLimit: 24, maxRotation: 0, color: '#4a6a8a' };
-    c.update('none');
-  });
+    gridChart.update('none');
+  }
 
-  // Threat — event-driven, keep as-is
+  // Update Grid Small
+  const gridSmChart = ci['chart-grid-sm'];
+  if (gridSmChart) {
+    gridSmChart.data.labels = fixedLabels;
+    gridSmChart.data.datasets[0].data = gridData;
+    gridSmChart.data.datasets[0].backgroundColor = gridData.map(v => 
+      v > 0 ? 'rgba(255,80,80,0.7)' : (v < 0 ? 'rgba(0,255,136,0.7)' : 'rgba(100,100,100,0.5)')
+    );
+    gridSmChart.update('none');
+  }
+
+  // Update Energy Page Charts
+  const energySolar = ci['chart-energy-solar'];
+  if (energySolar) {
+    energySolar.data.labels = fixedLabels;
+    energySolar.data.datasets[0].data = toFixedArray(h.solarByHour);
+    energySolar.update('none');
+  }
+
+  const energyLoad = ci['chart-energy-load'];
+  if (energyLoad) {
+    energyLoad.data.labels = fixedLabels;
+    energyLoad.data.datasets[0].data = toFixedArray(h.loadByHour);
+    energyLoad.update('none');
+  }
+
+  // Threat chart (keep as is - event-driven)
   const tc = ci['chart-threat'];
   if (tc) {
     tc.data.datasets[0].data = [...h.threat];
@@ -627,8 +664,22 @@ function makeChart(id, type, labels, datasets, opts = {}) {
   STATE.chartInstances[id] = chart;
   return chart;
 }
+function getActiveCyberAttack() {
+  const cyberAnomalies = (STATE.data.anomalies || []).filter(a => 
+    a.attack_type === 'BruteForce' || 
+    a.attack_type === 'CredentialStuffing' ||
+    a.attack_type === 'Phishing' ||
+    a.attack_type === 'MITM' ||
+    a.attack_type === 'DDoS' ||
+    a.attack_type === 'SessionHijacking'
+  );
+  
+  if (cyberAnomalies.length === 0) return '—';
+  
+  const latestAttack = cyberAnomalies[cyberAnomalies.length - 1];
+  return latestAttack.attack_type || 'Unknown Attack';
+}
 
-//nst CHART_LABELS = Array.from({length: 100}, (_, i) => `T-${100-i}`);
 
 // ── DASHBOARD PAGE ────────────────────────────────────────
 function renderDashboard() {
@@ -738,26 +789,27 @@ function renderDashboard() {
         <div class="data-row"><span class="data-row-label">Temperature</span><span class="data-row-value" id="live-temp">${(d.temperature||0).toFixed(1)} °C</span></div>
 
         <div class="data-row"><span class="data-row-label">Physical Alert</span><span class="data-row-value ${d.alert > 0 ? 'red' : 'green'}">${d.alert > 0 ? '⚠ Active' : '✓ Normal'}</span></div>
-      </div>
       <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-shield-alt icon"></i> Security Status</div>
-          <div class="status-indicator online">SECURE</div>
-        </div>
-        <div class="enc-status"><i class="fas fa-lock"></i> TLS 1.3 — All channels encrypted</div>
-        <div class="enc-status" style="background:rgba(168,85,247,0.07);border-color:rgba(168,85,247,0.2);color:var(--accent-purple);"><i class="fas fa-key"></i> JWT Auth — Token valid</div>
-        <div style="margin-top:12px;">
-          <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;">
-            <span>Threat Score</span><span id="live-threat">${(d.threatScore || 18).toFixed(0)}/100</span>
-          </div>
-          <div class="threat-meter"><div class="threat-fill" id="threat-fill" style="width:${(d.threatScore || 18)}%"></div></div>
-        </div>
-        <hr class="divider">
-        <div class="data-row"><span class="data-row-label">Active Connections</span><span class="data-row-value cyan">4</span></div>
-        <div class="data-row"><span class="data-row-label">IDS Status</span><span class="data-row-value green">Active</span></div>
-        <div class="data-row"><span class="data-row-label">Failed Logins (24h)</span><span class="data-row-value yellow">${STATE.alerts.filter(a=>a.title.includes('Failed')||a.title.includes('Login')).length}</span></div>
-        <div class="chart-wrapper sm" style="margin-top:12px;"><canvas id="chart-threat"></canvas></div>
-      </div>
+  <div class="card-header">
+    <div class="card-title"><i class="fas fa-shield-alt icon"></i> Security Status</div>
+    <div class="status-indicator ${STATE.data.cyberThreatScore > 50 ? 'offline' : 'online'}" id="cyber-status-badge">
+      ${STATE.data.cyberThreatScore > 50 ? '⚠ CYBER THREAT' : '✓ CYBER SECURE'}
+    </div>
+  </div>
+  <div class="enc-status"><i class="fas fa-lock"></i> TLS 1.3 — All channels encrypted</div>
+  <div class="enc-status" style="background:rgba(168,85,247,0.07);border-color:rgba(168,85,247,0.2);color:var(--accent-purple);"><i class="fas fa-key"></i> JWT Auth — Token valid</div>
+  <div style="margin-top:12px;">
+    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;">
+      <span>Cyber Threat Score</span><span id="live-cyber-threat">${(STATE.data.cyberThreatScore || 0).toFixed(0)}/100</span>
+    </div>
+    <div class="threat-meter"><div class="threat-fill" id="cyber-threat-fill-dash" style="width:${(STATE.data.cyberThreatScore || 0)}%; background:linear-gradient(90deg,#a855f7,#d946ef);"></div></div>
+  </div>
+  <hr class="divider">
+  <div class="data-row"><span class="data-row-label">Active Connections</span><span class="data-row-value cyan">4</span></div>
+  <div class="data-row"><span class="data-row-label">Security Status</span><span class="data-row-value ${STATE.data.cyberThreatScore > 50 ? 'red' : 'green'}">${STATE.data.cyberThreatScore > 50 ? '⚠ UNSECURE' : '✓ SECURE'}</span></div>
+  <div class="data-row"><span class="data-row-label">Active Attack</span><span class="data-row-value red" id="active-cyber-attack">${getActiveCyberAttack()}</span></div>
+  <div class="chart-wrapper sm" style="margin-top:12px;"><canvas id="chart-cyber-threat"></canvas></div>
+</div>
       <div class="card">
         <div class="card-header">
         <div class="card" style="height: 100%;">
@@ -851,6 +903,9 @@ makeChart('chart-threat', 'line',HOURS24,[
   { label:'Threat', data: new Array(24).fill(0), borderColor:'#ff3366', backgroundColor:'rgba(255,51,102,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
 ], { yScale: { min: 0, max: 100 } });
   }, 50);
+makeChart('chart-cyber-threat', 'line', HOURS24, [
+  { label:'Cyber Threat', data: new Array(24).fill(0), borderColor:'#a855f7', backgroundColor:'rgba(168,85,247,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
+], { yScale: { min: 0, max: 100 } });
 }
 
 // ── ENERGY PAGE ───────────────────────────────────────────
@@ -1160,34 +1215,35 @@ function renderSecurityPage() {
     <div class="grid-2">
       
       <!-- Attack Simulation Card -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-flask icon"></i> Attack Simulation</div>
-          <span style="font-size:11px;color:var(--text-muted);">Test response</span>
+<div class="card">
+  <div class="card-header">
+    <div class="card-title"><i class="fas fa-flask icon"></i> Attack Simulation</div>
+    <span style="font-size:11px;color:var(--text-muted);">Test cyber threats</span>
+  </div>
+  <div style="display:flex; flex-direction:column; gap:12px;">
+    ${[
+      { name:'Brute Force', icon:'fa-user-secret', color:'#a855f7', desc:'Password guessing attack', action:"simulateAttack('BruteForce')" },
+      { name:'Credential Stuffing', icon:'fa-key', color:'#d946ef', desc:'Stolen credentials attack', action:"simulateAttack('CredentialStuffing')" },
+      { name:'Phishing', icon:'fa-envelope', color:'#f43f5e', desc:'Fake login page attack', action:"simulateAttack('Phishing')" },
+      { name:'MITM', icon:'fa-exchange-alt', color:'#ff6b35', desc:'Man-in-the-middle', action:"simulateAttack('MITM')" },
+      { name:'DDoS', icon:'fa-tachometer-alt', color:'#ffcc00', desc:'Flood network traffic', action:"simulateAttack('DDoS')" },
+      { name:'Session Hijacking', icon:'fa-cookie', color:'#10b981', desc:'Steal user session', action:"simulateAttack('SessionHijacking')" },
+    ].map(s=>`
+      <div style="padding:12px; background:rgba(0,0,0,0.3); border-radius:10px; border-left:3px solid ${s.color}; display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-size:18px; color:${s.color};"><i class="fas ${s.icon}"></i></div>
+          <div>
+            <div style="font-weight:600; font-size:13px;">${s.name}</div>
+            <div style="font-size:11px; color:var(--text-muted);">${s.desc}</div>
+          </div>
         </div>
-        <div style="display:flex; flex-direction:column; gap:12px;">
-          ${[
-            { name:'FDIA', icon:'fa-database', color:'#ff3366', desc:'False data injection', action:"simulateAttack('FDIA')" },
-            { name:'DoS', icon:'fa-tachometer-alt', color:'#ffcc00', desc:'Denial of service', action:"simulateAttack('DoS')" },
-            { name:'Brute Force', icon:'fa-user-secret', color:'#a855f7', desc:'Password attack', action:"simulateAttack('BruteForce')" },
-            { name:'MITM', icon:'fa-exchange-alt', color:'#ff6b35', desc:'Man-in-the-middle', action:"simulateAttack('MITM')" },
-          ].map(s=>`
-            <div style="padding:12px; background:rgba(0,0,0,0.3); border-radius:10px; border-left:3px solid ${s.color}; display:flex; align-items:center; justify-content:space-between;">
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div style="font-size:18px; color:${s.color};"><i class="fas ${s.icon}"></i></div>
-                <div>
-                  <div style="font-weight:600; font-size:13px;">${s.name}</div>
-                  <div style="font-size:11px; color:var(--text-muted);">${s.desc}</div>
-                </div>
-              </div>
-              <button class="btn btn-danger btn-sm" onclick="${s.action}" style="background:${s.color}; border:none; padding:5px 12px; font-size:11px;">
-                <i class="fas fa-play"></i> Run
-              </button>
-            </div>
-          `).join('')}
-        </div>
+        <button class="btn btn-danger btn-sm" onclick="${s.action}" style="background:${s.color}; border:none; padding:5px 12px; font-size:11px;">
+          <i class="fas fa-play"></i> Run
+        </button>
       </div>
-
+    `).join('')}
+  </div>
+</div>
       <!-- Recent Alerts Card -->
       <div class="card">
         <div class="card-header">
@@ -1243,39 +1299,52 @@ function renderAnomalyPage() {
   const el = document.getElementById('page-anomaly');
   if (!el) return;
 
-  // Separate cyber vs physical anomalies from backend
-  const cyberAnomalies = (d.anomalies || []).filter(a => 
-    a.attack_type === 'BRUTE_FORCE' || 
-    a.attack_type === 'CREDENTIAL_STUFFING' ||
+  // Get anomalies from backend
+  const anomalies = d.anomalies || [];
+  
+  // Separate cyber vs physical anomalies
+  const cyberAnomalies = anomalies.filter(a => 
+    a.attack_type === 'BruteForce' || 
+    a.attack_type === 'CredentialStuffing' ||
+    a.attack_type === 'Phishing' ||
+    a.attack_type === 'MITM' ||
+    a.attack_type === 'DDoS' ||
+    a.attack_type === 'SessionHijacking' ||
     a.signal === 'failed_login_count' ||
     a.signal === 'unique_usernames_tried'
   );
   
-  const physicalAnomalies = (d.anomalies || []).filter(a => 
-    a.attack_type !== 'BRUTE_FORCE' && 
-    a.attack_type !== 'CREDENTIAL_STUFFING' &&
-    a.signal !== 'failed_login_count'
+  const physicalAnomalies = anomalies.filter(a => 
+    a.attack_type !== 'BruteForce' && 
+    a.attack_type !== 'CredentialStuffing' &&
+    a.attack_type !== 'Phishing' &&
+    a.attack_type !== 'MITM' &&
+    a.attack_type !== 'DDoS' &&
+    a.attack_type !== 'SessionHijacking' &&
+    a.signal !== 'failed_login_count' &&
+    a.signal !== 'attack_simulation'
   );
 
-  // Cyber threat detectors with real scores
+  // Cyber threat detectors
   const cyberDetectors = [
-    { name:'Brute Force Attack', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'BRUTE_FORCE').length * 25), detected: cyberAnomalies.some(a => a.attack_type === 'BRUTE_FORCE') },
-    { name:'Credential Stuffing', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'CREDENTIAL_STUFFING').length * 25), detected: cyberAnomalies.some(a => a.attack_type === 'CREDENTIAL_STUFFING') },
-    { name:'Failed Login Spike', score: Math.min(100, cyberAnomalies.filter(a => a.signal === 'failed_login_count').length * 20), detected: cyberAnomalies.some(a => a.signal === 'failed_login_count') },
-    { name:'Unauthorized Access', score: rnd(5,18,0), detected: false },
-    { name:'MITM Attempt', score: rnd(3,12,0), detected: false },
-    { name:'Replay Attack', score: rnd(8,18,0), detected: false },
+    { name:'Brute Force Attack', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'BruteForce').length * 20), detected: cyberAnomalies.some(a => a.attack_type === 'BruteForce') },
+    { name:'Credential Stuffing', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'CredentialStuffing').length * 20), detected: cyberAnomalies.some(a => a.attack_type === 'CredentialStuffing') },
+    { name:'Phishing Attempt', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'Phishing').length * 20), detected: cyberAnomalies.some(a => a.attack_type === 'Phishing') },
+    { name:'Man-in-the-Middle', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'MITM').length * 20), detected: cyberAnomalies.some(a => a.attack_type === 'MITM') },
+    { name:'DDoS Attack', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'DDoS').length * 20), detected: cyberAnomalies.some(a => a.attack_type === 'DDoS') },
+    { name:'Session Hijacking', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'SessionHijacking').length * 20), detected: cyberAnomalies.some(a => a.attack_type === 'SessionHijacking') },
   ];
 
-  // Physical threat detectors
+  // Physical threat detectors (only from MATLAB, not simulations)
   const physicalDetectors = [
-    { name:'FDIA — False Data Injection', score: (d.threatScore || 18) > 70 ? rnd(75,95,0) : rnd(5,20,0), detected: (d.threatScore || 18) > 70 },
-    { name:'DoS / DDoS Attack Pattern', score: rnd(5,15,0), detected: false },
-    { name:'Voltage Anomaly', score: (d.threatScore || 18) > 60 ? rnd(60,80,0) : rnd(10,25,0), detected: (d.threatScore || 18) > 60 },
+    { name:'Physical Alert', score: d.alert === 1 ? 100 : 0, detected: d.alert === 1 },
+    { name:'Voltage Anomaly', score: d.threatScore > 60 ? rnd(60,80,0) : rnd(10,25,0), detected: d.threatScore > 60 },
     { name:'Frequency Deviation', score: rnd(5,20,0), detected: false },
     { name:'Temperature Spike', score: d.temperature > 40 ? rnd(60,85,0) : rnd(5,15,0), detected: d.temperature > 40 },
     { name:'Grid Instability', score: Math.abs(d.gridImport - d.gridExport) > 5 ? rnd(50,75,0) : rnd(5,15,0), detected: Math.abs(d.gridImport - d.gridExport) > 5 },
   ];
+
+
 
   el.innerHTML = `
   <div style="padding:24px;">
