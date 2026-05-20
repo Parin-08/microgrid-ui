@@ -882,11 +882,13 @@ makeChart('chart-grid-sm', 'bar',HOURS24,[
 makeChart('chart-threat', 'line',HOURS24,[ 
   { label:'Threat', data: new Array(24).fill(0), borderColor:'#ff3366', backgroundColor:'rgba(255,51,102,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
 ], { yScale: { min: 0, max: 100 } });
-  }, 50);
+
 makeChart('chart-cyber-threat', 'line', HOURS24, [
   { label:'Cyber Threat', data: new Array(24).fill(0), borderColor:'#a855f7', backgroundColor:'rgba(168,85,247,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
 ], { yScale: { min: 0, max: 100 } });
+ }, 50);
 }
+
 
 // ── ENERGY PAGE ───────────────────────────────────────────
 function renderEnergyPage() {
