@@ -776,78 +776,73 @@ function renderDashboard() {
 </div>
     
 
-    <!-- Row 3: Grid Power + Security + System Vitals -->
-   <div class="grid-3" style="margin-bottom:20px;grid-template-columns:1fr 1fr 1fr;">
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-project-diagram icon"></i> Grid Power Flow</div>
-        </div>
-        <div class="chart-wrapper sm"><canvas id="chart-grid-sm"></canvas></div>
-        <hr class="divider">
-        <div class="data-row"><span class="data-row-label">Grid Import</span><span class="data-row-value red" id="live-grid-imp">${(d.gridImport || 0).toFixed(1)} kW</span></div>
-        <div class="data-row"><span class="data-row-label">Grid Export</span><span class="data-row-value green">${(d.gridExport || 0).toFixed(1)} kW</span></div>
-        <div class="data-row"><span class="data-row-label">Temperature</span><span class="data-row-value" id="live-temp">${(d.temperature||0).toFixed(1)} °C</span></div>
+    <!-- Row 3: Grid Power Flow + Security Status + Live Alerts -->
+<div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; margin-bottom:20px;">
+  
+  <!-- Grid Power Flow Card -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-project-diagram icon"></i> Grid Power Flow</div>
+    </div>
+    <div class="chart-wrapper sm"><canvas id="chart-grid-sm"></canvas></div>
+    <hr class="divider">
+    <div class="data-row"><span class="data-row-label">Grid Import</span><span class="data-row-value red" id="live-grid-imp">${(d.gridImport || 0).toFixed(1)} kW</span></div>
+    <div class="data-row"><span class="data-row-label">Grid Export</span><span class="data-row-value green">${(d.gridExport || 0).toFixed(1)} kW</span></div>
+    <div class="data-row"><span class="data-row-label">Temperature</span><span class="data-row-value" id="live-temp">${(d.temperature||0).toFixed(1)} °C</span></div>
+    <div class="data-row"><span class="data-row-label">Physical Alert</span><span class="data-row-value ${d.alert > 0 ? 'red' : 'green'}">${d.alert > 0 ? '⚠ Active' : '✓ Normal'}</span></div>
+  </div>
 
-        <div class="data-row"><span class="data-row-label">Physical Alert</span><span class="data-row-value ${d.alert > 0 ? 'red' : 'green'}">${d.alert > 0 ? '⚠ Active' : '✓ Normal'}</span></div>
-      <div class="card">
-  <div class="card-header">
-    <div class="card-title"><i class="fas fa-shield-alt icon"></i> Security Status</div>
-    <div class="status-indicator ${STATE.data.cyberThreatScore > 50 ? 'offline' : 'online'}" id="cyber-status-badge">
-      ${STATE.data.cyberThreatScore > 50 ? '⚠ CYBER THREAT' : '✓ CYBER SECURE'}
+  <!-- Security Status Card (Cyber) -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-shield-alt icon"></i> Security Status</div>
+      <div class="status-indicator ${STATE.data.cyberThreatScore > 50 ? 'offline' : 'online'}">
+        ${STATE.data.cyberThreatScore > 50 ? '⚠ CYBER THREAT' : '✓ CYBER SECURE'}
+      </div>
+    </div>
+    <div class="enc-status"><i class="fas fa-lock"></i> TLS 1.3 — All channels encrypted</div>
+    <div class="enc-status" style="background:rgba(168,85,247,0.07);border-color:rgba(168,85,247,0.2);color:var(--accent-purple);"><i class="fas fa-key"></i> JWT Auth — Token valid</div>
+    <div style="margin-top:12px;">
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;">
+        <span>Cyber Threat Score</span><span id="live-cyber-threat">${(STATE.data.cyberThreatScore || 0).toFixed(0)}/100</span>
+      </div>
+      <div class="threat-meter"><div class="threat-fill" style="width:${(STATE.data.cyberThreatScore || 0)}%; background:linear-gradient(90deg,#a855f7,#d946ef);"></div></div>
+    </div>
+    <hr class="divider">
+    <div class="data-row"><span class="data-row-label">Active Connections</span><span class="data-row-value cyan">4</span></div>
+    <div class="data-row"><span class="data-row-label">Security Status</span><span class="data-row-value ${STATE.data.cyberThreatScore > 50 ? 'red' : 'green'}">${STATE.data.cyberThreatScore > 50 ? '⚠ UNSECURE' : '✓ SECURE'}</span></div>
+    <div class="data-row"><span class="data-row-label">Active Attack</span><span class="data-row-value red" id="active-cyber-attack">${getActiveCyberAttack()}</span></div>
+  </div>
+
+  <!-- Live Alerts Card (Physical) -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title"><i class="fas fa-radiation-alt icon"></i> Live Alerts</div>
+      <div class="status-indicator ${(d.threatScore||0) > 50 ? 'offline' : 'online'}">
+        ${(d.threatScore||0) > 50 ? '⚠ THREAT' : '✓ SECURE'}
+      </div>
+    </div>
+    <div class="data-row">
+      <span class="data-row-label">Physical Alert</span>
+      <span class="data-row-value ${d.alert === 1 ? 'red' : 'green'}">${d.alert === 1 ? '🚨 ALERT' : '✅ Normal'}</span>
+    </div>
+    <div class="data-row">
+      <span class="data-row-label">Attack Injected</span>
+      <span class="data-row-value ${d.attackInjected === 1 ? 'red' : 'green'}">${d.attackInjected === 1 ? '🔴 YES' : '🟢 NO'}</span>
+    </div>
+    <div class="data-row">
+      <span class="data-row-label">Attack Type</span>
+      <span class="data-row-value red">${d.attackType && d.attackType !== 'None' ? d.attackType : '—'}</span>
+    </div>
+    <hr class="divider">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;display:flex;justify-content:space-between;">
+      <span>Physical Threat Score</span><span>${(d.threatScore||0).toFixed(0)}/100</span>
+    </div>
+    <div class="threat-meter">
+      <div class="threat-fill" style="width:${d.threatScore||0}%; background:linear-gradient(90deg,#00ff88,#ffcc00,#ff3366);"></div>
     </div>
   </div>
-  <div class="enc-status"><i class="fas fa-lock"></i> TLS 1.3 — All channels encrypted</div>
-  <div class="enc-status" style="background:rgba(168,85,247,0.07);border-color:rgba(168,85,247,0.2);color:var(--accent-purple);"><i class="fas fa-key"></i> JWT Auth — Token valid</div>
-  <div style="margin-top:12px;">
-    <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px;display:flex;justify-content:space-between;">
-      <span>Cyber Threat Score</span><span id="live-cyber-threat">${(STATE.data.cyberThreatScore || 0).toFixed(0)}/100</span>
-    </div>
-    <div class="threat-meter"><div class="threat-fill" id="cyber-threat-fill-dash" style="width:${(STATE.data.cyberThreatScore || 0)}%; background:linear-gradient(90deg,#a855f7,#d946ef);"></div></div>
-  </div>
-  <hr class="divider">
-  <div class="data-row"><span class="data-row-label">Active Connections</span><span class="data-row-value cyan">4</span></div>
-  <div class="data-row"><span class="data-row-label">Security Status</span><span class="data-row-value ${STATE.data.cyberThreatScore > 50 ? 'red' : 'green'}">${STATE.data.cyberThreatScore > 50 ? '⚠ UNSECURE' : '✓ SECURE'}</span></div>
-  <div class="data-row"><span class="data-row-label">Active Attack</span><span class="data-row-value red" id="active-cyber-attack">${getActiveCyberAttack()}</span></div>
-  <div class="chart-wrapper sm" style="margin-top:12px;"><canvas id="chart-cyber-threat"></canvas></div>
 </div>
-      <div class="card">
-        <div class="card-header">
-        <div class="card" style="height: 100%;">
-  <div class="card-header">
-    <div class="card-title"><i class="fas fa-radiation-alt icon"></i> Live Alerts</div>
-    <div class="status-indicator ${(d.threatScore||0) > 50 ? 'offline' : 'online'}" id="threat-status">
-      ${(d.threatScore||0) > 50 ? '⚠ THREAT' : '✓ SECURE'}
-    </div>
-  </div>
-  <div class="data-row">
-    <span class="data-row-label">Physical Alert</span>
-    <span class="data-row-value ${d.alert === 1 ? 'red' : 'green'}" id="live-physical-alert">
-      ${d.alert === 1 ? '🚨 ALERT' : '✅ Normal'}
-    </span>
-  </div>
-  <div class="data-row">
-    <span class="data-row-label">Attack Injected</span>
-    <span class="data-row-value ${d.attackInjected === 1 ? 'red' : 'green'}" id="live-attack-injected">
-      ${d.attackInjected === 1 ? '🔴 YES' : '🟢 NO'}
-    </span>
-  </div>
-  <div class="data-row">
-    <span class="data-row-label">Attack Type</span>
-    <span class="data-row-value red" id="live-attack-type">
-      ${d.attackType && d.attackType !== 'None' ? d.attackType : '—'}
-    </span>
-  </div>
-  <hr class="divider">
-  <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;display:flex;justify-content:space-between;">
-    <span>Threat Score</span><span id="live-threat">${(d.threatScore||0).toFixed(0)}/100</span>
-  </div>
-  <div class="threat-meter">
-    <div class="threat-fill" id="threat-fill" style="width:${d.threatScore||0}%"></div>
-  </div>
- 
-</div>
-       
-    </div>
 
     <!-- Recent Alerts -->
     <div class="card">
