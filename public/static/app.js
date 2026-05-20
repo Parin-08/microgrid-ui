@@ -1936,7 +1936,10 @@ async function createAnomalyInBackend(attackType, hour) {
   } catch(e) {
     console.error('Failed to create anomaly:', e);
   }
-  async function simulateAttack(type) {
+}  // ← Close createAnomalyInBackend HERE
+
+// THEN add simulateAttack AFTER it (not inside)
+async function simulateAttack(type) {
   // Send attack to backend
   await fetch('https://microgrid-final.onrender.com/anomalies/', {
     method: 'POST',
@@ -1963,5 +1966,4 @@ async function createAnomalyInBackend(attackType, hour) {
   
   addLog('critical', 'security', `[SIMULATION] ${type} attack initiated`);
   addAlert('critical', `[SIMULATION] ${type} Attack`, `Simulated ${type} attack triggered`);
-}
 }
