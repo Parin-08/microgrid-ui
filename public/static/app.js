@@ -540,66 +540,76 @@ function updateLiveCharts() {
   const ci = STATE.chartInstances;
   const h = STATE.history;
 
-  // Fixed 24-hour array (always Hr 0 to Hr 23)
-  const toFixedArray = (byHour) => {
-    const arr = new Array(24).fill(0);
-    if (!byHour) return arr;
+  // FIXED: Creates array for ALL hours 0-23
+  const toSortedArrays = (byHour) => {
+    const hours = [];
+    const data = [];
     for (let hr = 0; hr <= 23; hr++) {
-      if (byHour[hr] !== undefined) arr[hr] = byHour[hr];
+      hours.push(hr);
+      if (byHour && byHour[hr] !== undefined) {
+        data.push(byHour[hr]);
+      } else {
+        data.push(0);
+      }
     }
-    return arr;
+    return {
+      labels: hours.map(hr => `Hr ${hr}`),
+      data: data
+    };
   };
-
-  // Fixed labels (always Hr 0 to Hr 23)
-  const fixedLabels = Array.from({length: 24}, (_, i) => `Hr ${i}`);
 
   // Update Solar
   const solarChart = ci['chart-solar'];
   if (solarChart) {
-    solarChart.data.labels = fixedLabels;
-    solarChart.data.datasets[0].data = toFixedArray(h.solarByHour);
+    const { labels, data } = toSortedArrays(h.solarByHour);
+    solarChart.data.labels = labels;
+    solarChart.data.datasets[0].data = data;
     solarChart.update('none');
   }
 
   // Update Load
   const loadChart = ci['chart-load'];
   if (loadChart) {
-    loadChart.data.labels = fixedLabels;
-    loadChart.data.datasets[0].data = toFixedArray(h.loadByHour);
+    const { labels, data } = toSortedArrays(h.loadByHour);
+    loadChart.data.labels = labels;
+    loadChart.data.datasets[0].data = data;
     loadChart.update('none');
   }
 
   // Update Battery
   const batteryChart = ci['chart-battery'];
   if (batteryChart) {
-    batteryChart.data.labels = fixedLabels;
-    batteryChart.data.datasets[0].data = toFixedArray(h.batteryByHour);
+    const { labels, data } = toSortedArrays(h.batteryByHour);
+    batteryChart.data.labels = labels;
+    batteryChart.data.datasets[0].data = data;
     batteryChart.update('none');
   }
 
   // Update Temperature
   const tempChart = ci['chart-temp'];
   if (tempChart) {
-    tempChart.data.labels = fixedLabels;
-    tempChart.data.datasets[0].data = toFixedArray(h.tempByHour);
+    const { labels, data } = toSortedArrays(h.tempByHour);
+    tempChart.data.labels = labels;
+    tempChart.data.datasets[0].data = data;
     tempChart.update('none');
   }
 
   // Update Alert
   const alertChart = ci['chart-alert'];
   if (alertChart) {
-    alertChart.data.labels = fixedLabels;
-    alertChart.data.datasets[0].data = toFixedArray(h.alertByHour);
+    const { labels, data } = toSortedArrays(h.alertByHour);
+    alertChart.data.labels = labels;
+    alertChart.data.datasets[0].data = data;
     alertChart.update('none');
   }
 
-  // Update Grid
-  const gridData = toFixedArray(h.gridByHour);
+  // Update Grid (with colors for import/export)
+  const gridData = toSortedArrays(h.gridByHour);
   const gridChart = ci['chart-grid'];
   if (gridChart) {
-    gridChart.data.labels = fixedLabels;
-    gridChart.data.datasets[0].data = gridData;
-    gridChart.data.datasets[0].backgroundColor = gridData.map(v => 
+    gridChart.data.labels = gridData.labels;
+    gridChart.data.datasets[0].data = gridData.data;
+    gridChart.data.datasets[0].backgroundColor = gridData.data.map(v => 
       v > 0 ? 'rgba(255,80,80,0.7)' : (v < 0 ? 'rgba(0,255,136,0.7)' : 'rgba(100,100,100,0.5)')
     );
     gridChart.update('none');
@@ -608,9 +618,9 @@ function updateLiveCharts() {
   // Update Grid Small
   const gridSmChart = ci['chart-grid-sm'];
   if (gridSmChart) {
-    gridSmChart.data.labels = fixedLabels;
-    gridSmChart.data.datasets[0].data = gridData;
-    gridSmChart.data.datasets[0].backgroundColor = gridData.map(v => 
+    gridSmChart.data.labels = gridData.labels;
+    gridSmChart.data.datasets[0].data = gridData.data;
+    gridSmChart.data.datasets[0].backgroundColor = gridData.data.map(v => 
       v > 0 ? 'rgba(255,80,80,0.7)' : (v < 0 ? 'rgba(0,255,136,0.7)' : 'rgba(100,100,100,0.5)')
     );
     gridSmChart.update('none');
@@ -619,19 +629,21 @@ function updateLiveCharts() {
   // Update Energy Page Charts
   const energySolar = ci['chart-energy-solar'];
   if (energySolar) {
-    energySolar.data.labels = fixedLabels;
-    energySolar.data.datasets[0].data = toFixedArray(h.solarByHour);
+    const { labels, data } = toSortedArrays(h.solarByHour);
+    energySolar.data.labels = labels;
+    energySolar.data.datasets[0].data = data;
     energySolar.update('none');
   }
 
   const energyLoad = ci['chart-energy-load'];
   if (energyLoad) {
-    energyLoad.data.labels = fixedLabels;
-    energyLoad.data.datasets[0].data = toFixedArray(h.loadByHour);
+    const { labels, data } = toSortedArrays(h.loadByHour);
+    energyLoad.data.labels = labels;
+    energyLoad.data.datasets[0].data = data;
     energyLoad.update('none');
   }
 
-  // Threat chart (keep as is - event-driven)
+  // Threat chart (keep as is)
   const tc = ci['chart-threat'];
   if (tc) {
     tc.data.datasets[0].data = [...h.threat];
@@ -639,47 +651,6 @@ function updateLiveCharts() {
     tc.update('none');
   }
 }
-// ── Chart Factory ─────────────────────────────────────────
-function makeChart(id, type, labels, datasets, opts = {}) {
-  const canvas = document.getElementById(id);
-  if (!canvas) return null;
-  if (STATE.chartInstances[id]) { try { STATE.chartInstances[id].destroy(); } catch(e){} }
-  const chart = new Chart(canvas, {
-    type,
-    data: { labels, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      animation: { duration: 0 },
-      plugins: {
-        legend: { display: opts.legend || false, labels: { color: '#7a9cc0', font: { size: 11 } } },
-        tooltip: { backgroundColor: '#0a1628', borderColor: '#1a3a5c', borderWidth: 1, titleColor: '#e2f0ff', bodyColor: '#7a9cc0' }
-      },
-      scales: type !== 'doughnut' && type !== 'pie' ? {
-        x: { grid: { color: 'rgba(26,58,92,0.4)' }, ticks: { color: '#4a6a8a', font: { size: 10 } }, ...(opts.xScale||{}) },
-        y: { grid: { color: 'rgba(26,58,92,0.4)' }, ticks: { color: '#4a6a8a', font: { size: 10 } }, ...(opts.yScale||{}) }
-      } : {},
-      ...opts.extra
-    }
-  });
-  STATE.chartInstances[id] = chart;
-  return chart;
-}
-function getActiveCyberAttack() {
-  const cyberAnomalies = (STATE.data.anomalies || []).filter(a => 
-    a.attack_type === 'BruteForce' || 
-    a.attack_type === 'CredentialStuffing' ||
-    a.attack_type === 'Phishing' ||
-    a.attack_type === 'MITM' ||
-    a.attack_type === 'DDoS' ||
-    a.attack_type === 'SessionHijacking'
-  );
-  
-  if (cyberAnomalies.length === 0) return '—';
-  
-  const latestAttack = cyberAnomalies[cyberAnomalies.length - 1];
-  return latestAttack.attack_type || 'Unknown Attack';
-}
-
 
 // ── DASHBOARD PAGE ────────────────────────────────────────
 function renderDashboard() {
