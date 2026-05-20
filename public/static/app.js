@@ -651,7 +651,21 @@ function updateLiveCharts() {
     tc.update('none');
   }
 }
-
+function getActiveCyberAttack() {
+  const cyberAnomalies = (STATE.data.anomalies || []).filter(a => 
+    a.attack_type === 'BruteForce' || 
+    a.attack_type === 'CredentialStuffing' ||
+    a.attack_type === 'Phishing' ||
+    a.attack_type === 'MITM' ||
+    a.attack_type === 'DDoS' ||
+    a.attack_type === 'SessionHijacking'
+  );
+  
+  if (cyberAnomalies.length === 0) return '—';
+  
+  const latestAttack = cyberAnomalies[cyberAnomalies.length - 1];
+  return latestAttack.attack_type || 'Unknown Attack';
+}
 // ── DASHBOARD PAGE ────────────────────────────────────────
 function renderDashboard() {
   const HOURS24 = ['Hr 0','Hr 1','Hr 2','Hr 3','Hr 4','Hr 5','Hr 6','Hr 7','Hr 8','Hr 9','Hr 10','Hr 11','Hr 12','Hr 13','Hr 14','Hr 15','Hr 16','Hr 17','Hr 18','Hr 19','Hr 20','Hr 21','Hr 22','Hr 23'];
