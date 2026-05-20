@@ -261,27 +261,9 @@ async function handleLogin() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...'; }
   const username = document.getElementById('login-user').value.trim().toLowerCase();
   const password = document.getElementById('login-pass').value;
-  const role     = document.getElementById('login-role').value;
-  const errorEl  = document.getElementById('login-error');
-  // Report failed login to Pranav's backend
-  if (!USERS[username] || USERS[username].password !== password) {
-    fetch('https://microgrid-final.onrender.com/anomalies/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        device_id: 'microgrid-ui',
-        signal: 'login_attempt',
-        value: 1,
-        expected_min: 0,
-        expected_max: 0,
-        anomaly_score: 85,
-        severity: 'high',
-        attack_type: 'BruteForce',
-        message: `Failed login attempt for user: ${username}`
-      })
-    }).catch(e => console.error('Anomaly report failed:', e));
-  }
-  const errorMsg = document.getElementById('login-error-msg');
+  const role = document.getElementById('login-role').value;
+  const errorEl = document.getElementById('login-error');
+  const errorMsg = document.getElementById('login-error-msg');  // ← ADD THIS LINE
 
   // Call real backend
   const result = await apiCall('/auth/login', {
@@ -291,8 +273,8 @@ async function handleLogin() {
 
   if (!result || !result.access_token) {
     errorEl.style.display = 'flex';
-  const btn2 = document.querySelector('.btn-login');
-  if (btn2) { btn2.disabled = false; btn2.innerHTML = 'AUTHENTICATE & ACCESS'; }
+    const btn2 = document.querySelector('.btn-login');
+    if (btn2) { btn2.disabled = false; btn2.innerHTML = 'AUTHENTICATE & ACCESS'; }
     errorMsg.textContent = result?.message || 'Invalid credentials';
     addLog('warning', 'auth', `Failed login attempt for: ${username}`);
     return;
@@ -306,10 +288,14 @@ async function handleLogin() {
     token: result.access_token
   };
   
+  // Reset cyber threat score on successful login
+  STATE.data.cyberThreatScore = 0;
+  await fetchRealAnomalies();
+  
   addLog('success', 'auth', `User "${username}" authenticated via backend`);
   renderApp();
-initMQTT();
-startRealTimeData();
+  initMQTT();
+  startRealTimeData();
 }
 
 // ── Main App Shell ────────────────────────────────────────
