@@ -1817,18 +1817,21 @@ async function fetchRealAnomalies() {
     if (Array.isArray(data) && data.length > 0) {
       STATE.data.anomalies = data;
 
-      // === CYBER ANOMALIES (from failed logins & simulation buttons) ===
+      // Time filter - only last 1 hour
+      const oneHourAgo = Date.now() - 60 * 60 * 1000;
+
+      // === CYBER ANOMALIES ===
       const cyberAnomalies = data.filter(a => 
-        a.attack_type === 'BruteForce' || 
-        a.attack_type === 'BruteForce' ||
-        a.attack_type === 'CredentialStuffing' ||
-        a.attack_type === 'Phishing' ||
-        a.attack_type === 'MITM' ||
-        a.attack_type === 'DDoS' ||
-        a.attack_type === 'SessionHijacking' ||
-        a.signal === 'failed_login_count' ||
-        a.signal === 'login_attempt'  &&
-        a.resolved !== true
+        (a.attack_type === 'BruteForce' || 
+         a.attack_type === 'CredentialStuffing' ||
+         a.attack_type === 'Phishing' ||
+         a.attack_type === 'MITM' ||
+         a.attack_type === 'DDoS' ||
+         a.attack_type === 'SessionHijacking' ||
+         a.signal === 'failed_login_count' ||
+         a.signal === 'login_attempt') &&
+        a.resolved !== true &&
+        new Date(a.time).getTime() > oneHourAgo
       );
       
       // Calculate Cyber Threat Score (max 100)
@@ -1841,8 +1844,28 @@ async function fetchRealAnomalies() {
       if (cyberThreatEl) cyberThreatEl.textContent = cyberScore;
       if (cyberThreatFill) cyberThreatFill.style.width = cyberScore + '%';
       
-      // === PHYSICAL ANOMALIES (ONLY from MATLAB alert:1) ===
-      // EXCLUDE all cyber attacks from physical score
+      // Also update dashboard security card
+      const liveCyberThreat = document.getElementById('live-cyber-threat');
+      if (liveCyberThreat) liveCyberThreat.textContent = cyberScore + '/100';
+      
+      const cyberFillDash = document.getElementById('cyber-threat-fill-dash');
+      if (cyberFillDash) cyberFillDash.style.width = cyberScore + '%';
+      
+      const cyberStatusBadge = document.getElementById('cyber-status-badge');
+      if (cyberStatusBadge) {
+        if (cyberScore > 50) {
+          cyberStatusBadge.textContent = '⚠ CYBER THREAT';
+          cyberStatusBadge.className = 'status-indicator offline';
+        } else {
+          cyberStatusBadge.textContent = '✓ CYBER SECURE';
+          cyberStatusBadge.className = 'status-indicator online';
+        }
+      }
+      
+      const activeAttackEl = document.getElementById('active-cyber-attack');
+      if (activeAttackEl) activeAttackEl.textContent = getActiveCyberAttack();
+      
+      // === PHYSICAL ANOMALIES ===
       const physicalAnomalies = data.filter(a => 
         a.attack_type !== 'BruteForce' && 
         a.attack_type !== 'CredentialStuffing' &&
@@ -1855,9 +1878,7 @@ async function fetchRealAnomalies() {
         a.signal !== 'attack_simulation'
       );
       
-      // Only update physical threat score if no active MQTT alert
       if (STATE.data.alert !== 1.0) {
-        const oneHourAgo = Date.now() - 60 * 60 * 1000;
         const recentActive = physicalAnomalies.filter(a => {
           const isActive = a.status !== 'resolved' && a.resolved !== true;
           const isRecent = !a.timestamp || new Date(a.timestamp).getTime() > oneHourAgo;
@@ -1870,7 +1891,6 @@ async function fetchRealAnomalies() {
         }
       }
     } else {
-      // No anomalies - reset scores
       STATE.data.cyberThreatScore = 0;
       if (STATE.data.alert !== 1.0) {
         STATE.data.threatScore = 18;
@@ -1880,8 +1900,6 @@ async function fetchRealAnomalies() {
     console.error('Failed to fetch anomalies:', e);
   }
 }
-document.addEventListener('DOMContentLoaded', () => { fetchRealAnomalies(); setInterval(fetchRealAnomalies, 10000); });
-
 // ── Real HiveMQ MQTT Connection ──────────────────────────────
 function initMQTT() {
   const client = mqtt.connect('wss://b796810c8d774e1d909a33856b193c2d.s1.eu.hivemq.cloud:8884/mqtt', {
