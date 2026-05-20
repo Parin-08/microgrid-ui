@@ -39,7 +39,11 @@ const STATE = {
   temperature: 0, alert: 0, hour: 0,
   batteryAction: 0,
   mode: 'grid-connected', securityLevel: 'normal',
-  threatScore: 18, encryptionStatus: true,
+  threatScore: 18,
+  cyberThreatScore: 0,
+  attackInjected: 0,
+  attackType: 'None',
+  encryptionStatus: true,
   activeConnections: 4, failedLogins: 0,
   mqttStatus: 'connected', tlsStatus: true,
   anomalies: [], powerFlow: []
@@ -69,7 +73,43 @@ const STATE = {
   loginAttempts: {},
   notifications: [],
 };
-
+function makeChart(id, type, labels, datasets, opts = {}) {
+  const canvas = document.getElementById(id);
+  if (!canvas) return null;
+  if (STATE.chartInstances[id]) { try { STATE.chartInstances[id].destroy(); } catch(e){} }
+  const chart = new Chart(canvas, {
+    type,
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 0 },
+      plugins: {
+        legend: { display: opts.legend || false, labels: { color: '#7a9cc0', font: { size: 11 } } },
+        tooltip: { backgroundColor: '#0a1628', borderColor: '#1a3a5c', borderWidth: 1, titleColor: '#e2f0ff', bodyColor: '#7a9cc0' }
+      },
+      scales: type !== 'doughnut' && type !== 'pie' ? {
+        x: { grid: { color: 'rgba(26,58,92,0.4)' }, ticks: { color: '#4a6a8a', font: { size: 10 } }, ...(opts.xScale||{}) },
+        y: { grid: { color: 'rgba(26,58,92,0.4)' }, ticks: { color: '#4a6a8a', font: { size: 10 } }, ...(opts.yScale||{}) }
+      } : {},
+      ...opts.extra
+    }
+  });
+  STATE.chartInstances[id] = chart;
+  return chart;
+}
+function getActiveCyberAttack() {
+  const cyberAnomalies = (STATE.data.anomalies || []).filter(a => 
+    a.attack_type === 'BruteForce' || 
+    a.attack_type === 'CredentialStuffing' ||
+    a.attack_type === 'Phishing' ||
+    a.attack_type === 'MITM' ||
+    a.attack_type === 'DDoS' ||
+    a.attack_type === 'SessionHijacking'
+  );
+  if (cyberAnomalies.length === 0) return '—';
+  const latestAttack = cyberAnomalies[cyberAnomalies.length - 1];
+  return latestAttack.attack_type || 'Unknown Attack';
+}
 const USERS = {
   admin:    { password: 'secret',    role: 'admin',    name: 'Dr. Arjun Mehta',    avatar: 'AM' },
   operator: { password: 'secret',     role: 'operator', name: 'Priya Sharma',        avatar: 'PS' },
@@ -886,7 +926,7 @@ makeChart('chart-threat', 'line',HOURS24,[
 makeChart('chart-cyber-threat', 'line', HOURS24, [
   { label:'Cyber Threat', data: new Array(24).fill(0), borderColor:'#a855f7', backgroundColor:'rgba(168,85,247,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
 ], { yScale: { min: 0, max: 100 } });
- }, 50);
+ },50);
 }
 
 
@@ -1473,7 +1513,13 @@ function retrainMLModel() {
     renderAnomalyPage();
   }, 2000);
 }
-
+function retrainMLModel() {
+  addLog('info', 'security', 'ML model retraining initiated — updating Isolation Forest');
+  setTimeout(() => {
+    addLog('success', 'security', 'ML model retrained successfully with new baseline data');
+    renderAnomalyPage();
+  }, 2000);
+}
 
 // ── LOGS PAGE ─────────────────────────────────────────────
 function renderLogsPage() {
@@ -2073,7 +2119,6 @@ async function simulateAttack(type) {
   });
   
   // Update frontend threat score
-  STATE.data.threatScore = Math.min(100, (STATE.data.threatScore || 18) + 30);
   
   // Refresh anomalies
   await fetchRealAnomalies();
