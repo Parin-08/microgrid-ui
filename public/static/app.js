@@ -1792,34 +1792,72 @@ async function fetchRealAnomalies() {
     });
     const data = await res.json();
     console.log('Real anomalies:', data);
+    
     if (Array.isArray(data) && data.length > 0) {
       STATE.data.anomalies = data;
 
-      // ── Only update threat score if no live MQTT alert is active ──
+      // === CYBER ANOMALIES (from failed logins & simulation buttons) ===
+      const cyberAnomalies = data.filter(a => 
+        a.attack_type === 'BruteForce' || 
+        a.attack_type === 'BruteForce' ||
+        a.attack_type === 'CredentialStuffing' ||
+        a.attack_type === 'Phishing' ||
+        a.attack_type === 'MITM' ||
+        a.attack_type === 'DDoS' ||
+        a.attack_type === 'SessionHijacking' ||
+        a.signal === 'failed_login_count' ||
+        a.signal === 'login_attempt'
+      );
+      
+      // Calculate Cyber Threat Score (max 100)
+      const cyberScore = Math.min(100, cyberAnomalies.length * 15);
+      STATE.data.cyberThreatScore = cyberScore;
+      
+      // Update UI for cyber
+      const cyberThreatEl = document.getElementById('cyber-threat-score');
+      const cyberThreatFill = document.getElementById('cyber-threat-fill');
+      if (cyberThreatEl) cyberThreatEl.textContent = cyberScore;
+      if (cyberThreatFill) cyberThreatFill.style.width = cyberScore + '%';
+      
+      // === PHYSICAL ANOMALIES (ONLY from MATLAB alert:1) ===
+      // EXCLUDE all cyber attacks from physical score
+      const physicalAnomalies = data.filter(a => 
+        a.attack_type !== 'BruteForce' && 
+        a.attack_type !== 'CredentialStuffing' &&
+        a.attack_type !== 'Phishing' &&
+        a.attack_type !== 'MITM' &&
+        a.attack_type !== 'DDoS' &&
+        a.attack_type !== 'SessionHijacking' &&
+        a.signal !== 'failed_login_count' &&
+        a.signal !== 'login_attempt' &&
+        a.signal !== 'attack_simulation'
+      );
+      
+      // Only update physical threat score if no active MQTT alert
       if (STATE.data.alert !== 1.0) {
         const oneHourAgo = Date.now() - 60 * 60 * 1000;
-        const recentActive = data.filter(a => {
+        const recentActive = physicalAnomalies.filter(a => {
           const isActive = a.status !== 'resolved' && a.resolved !== true;
           const isRecent = !a.timestamp || new Date(a.timestamp).getTime() > oneHourAgo;
           return isActive && isRecent;
         });
-
-        const score = Math.min(100, recentActive.length * 10);
-        // Only update UI if MQTT hasn't already set a live threat state
+        
+        const physScore = Math.min(100, recentActive.length * 10);
         if (STATE.data.threatScore !== 100) {
-          STATE.data.threatScore = score;
-          const threatEl = document.getElementById('live-threat');
-          const threatFill = document.getElementById('threat-fill');
-          if (threatEl) threatEl.textContent = score.toFixed(0) + ' / 100';
-          if (threatFill) threatFill.style.width = score + '%';
+          STATE.data.threatScore = physScore;
         }
+      }
+    } else {
+      // No anomalies - reset scores
+      STATE.data.cyberThreatScore = 0;
+      if (STATE.data.alert !== 1.0) {
+        STATE.data.threatScore = 18;
       }
     }
   } catch(e) {
     console.error('Failed to fetch anomalies:', e);
   }
 }
-
 document.addEventListener('DOMContentLoaded', () => { fetchRealAnomalies(); setInterval(fetchRealAnomalies, 10000); });
 
 // ── Real HiveMQ MQTT Connection ──────────────────────────────
