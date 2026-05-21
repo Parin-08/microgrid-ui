@@ -291,6 +291,7 @@ async function handleLogin() {
   // Reset cyber threat score on successful login
   STATE.data.cyberThreatScore = 0;
   STATE.data.anomalies = [];
+  window.cyberAnomaliesCache = [];
   await fetchRealAnomalies();
   
   addLog('success', 'auth', `User "${username}" authenticated via backend`);
@@ -680,13 +681,17 @@ function updateLiveCharts() {
   }
 }
 function getActiveCyberAttack() {
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+  
   const cyberAnomalies = (STATE.data.anomalies || []).filter(a => 
-    a.attack_type === 'BruteForce' || 
-    a.attack_type === 'CredentialStuffing' ||
-    a.attack_type === 'Phishing' ||
-    a.attack_type === 'MITM' ||
-    a.attack_type === 'DDoS' ||
-    a.attack_type === 'SessionHijacking'
+    (a.attack_type === 'BruteForce' || 
+     a.attack_type === 'CredentialStuffing' ||
+     a.attack_type === 'Phishing' ||
+     a.attack_type === 'MITM' ||
+     a.attack_type === 'DDoS' ||
+     a.attack_type === 'SessionHijacking') &&
+    a.resolved !== true &&
+    new Date(a.time).getTime() > oneHourAgo
   );
   
   if (cyberAnomalies.length === 0) return '—';
