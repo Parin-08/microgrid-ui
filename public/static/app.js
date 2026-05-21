@@ -309,7 +309,7 @@ function renderApp() {
 
   const navItems = [
     { id:'dashboard', icon:'fa-tachometer-alt',  label:'Dashboard',          section:'MONITORING'   },
-    { id:'energy',    icon:'fa-bolt',             label:'Energy Management',  section:null           },
+    { id:'energy',    icon:'fa-bolt',             label:'Control Center',  section:null           },
     { id:'grid', icon:'fa-comments',               label:'Personalized for you', section:null },
     { id:'security',  icon:'fa-shield-alt',       label:'Security Center',    section:'CYBERSECURITY'},
     { id:'anomaly',   icon:'fa-brain',            label:'Anomaly Detection',  section:null           },
@@ -481,7 +481,7 @@ function navigateTo(page) {
   if (navEl) navEl.classList.add('active');
 
   const titles = {
-    dashboard:'Dashboard Overview', energy:'Energy Management', grid:'Personalized for you',
+    dashboard:'Dashboard Overview', energy:'Control Center', grid:'Personalized for you',
     security:'Security Center', anomaly:'Anomaly Detection', logs:'Activity Logs',
     settings:'System Settings', users:'User Management'
   };
@@ -925,133 +925,383 @@ makeChart('chart-cyber-threat', 'line', HOURS24, [
 
 // ── ENERGY PAGE ───────────────────────────────────────────
 function renderEnergyPage() {
-  const d = STATE.data;
   const el = document.getElementById('page-energy');
   if (!el) return;
+  const d = STATE.data;
+  
   el.innerHTML = `
-  <div style="padding:24px;">
-    <div class="section-header">
-      <div>
-        <div class="section-title">Energy Management</div>
-        <div class="section-subtitle">Smart control algorithm — renewable integration, storage &amp; dispatch</div>
+    <div style="padding:24px;">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Control Center</div>
+          <div class="section-subtitle">Emergency control & weather intelligence</div>
+        </div>
+        <div class="status-pill ${d.mode === 'island' ? 'warning' : 'online'}">
+          <span class="pulse-dot"></span> ${d.mode === 'island' ? '🏝 ISLAND MODE' : '🔌 GRID-CONNECTED'}
+        </div>
       </div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-success" onclick="addLog('success','system','Manual export triggered by operator')"><i class="fas fa-upload"></i> Export</button>
-        <button class="btn btn-primary" onclick="addLog('info','system','Load shedding command sent')"><i class="fas fa-sliders-h"></i> Dispatch</button>
-      </div>
-    </div>
 
-    <!-- Control Mode -->
-    <div class="card" style="margin-bottom:20px;">
-      <div class="card-title" style="margin-bottom:14px;"><i class="fas fa-cogs icon"></i>&nbsp; Controller Operating Mode</div>
-      <div style="display:flex;gap:10px;">
-        <button class="mode-btn ${d.mode==='grid-connected'?'active':''}" onclick="setMode('grid-connected',this)">🔌 Grid-Connected</button>
-        <button class="mode-btn ${d.mode==='island'?'active':''}" onclick="setMode('island',this)">🏝 Island Mode</button>
-        <button class="mode-btn" onclick="setMode('export',this)">📤 Max Export</button>
-        <button class="mode-btn" onclick="setMode('charge',this)">🔋 Charge Priority</button>
-        <button class="mode-btn" onclick="setMode('eco',this)">🌱 Eco Mode</button>
-      </div>
-    </div>
+      <!-- Row 1: STOP and START Buttons Side by Side -->
+      <div class="grid-2" style="margin-bottom:20px;">
+        
+        <!-- EMERGENCY STOP Card -->
+        <div class="card" style="text-align:center;">
+          <div class="card-header">
+            <div class="card-title"><i class="fas fa-stop-circle icon" style="color:#ff3366;"></i> Emergency STOP</div>
+          </div>
+          <div style="padding:20px;">
+            <button id="emergency-stop-btn" onclick="emergencyStop()" 
+              style="background: linear-gradient(135deg, #ff3366, #cc0033); width: 160px; height: 160px; border-radius: 50%; border: none; color: white; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 0 20px rgba(255,51,102,0.5);">
+              <i class="fas fa-ban" style="font-size: 40px; display: block; margin-bottom: 8px;"></i>
+              STOP
+            </button>
+            <div style="margin-top: 16px;">
+              <span class="status-indicator ${d.mode === 'island' ? 'offline' : 'online'}">
+                Status: ${d.mode === 'island' ? '⛔ STOPPED' : '● RUNNING'}
+              </span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 12px;">
+              ⚠️ Disconnects grid & stops all energy flow
+            </div>
+          </div>
+        </div>
 
-    <!-- KPIs -->
-    <div class="grid-4" style="margin-bottom:20px;">
-      <div class="kpi-card yellow">
-        <div class="kpi-icon yellow"><i class="fas fa-solar-panel"></i></div>
-        <div class="kpi-value" id="live-solar">${d.solar.toFixed(1)} <span class="kpi-unit">kW</span></div>
-        <div class="kpi-label">Solar Generation</div>
-        <div class="kpi-trend up"><i class="fas fa-sun"></i> MPPT Active</div>
+        <!-- START MICROGRID Card -->
+        <div class="card" style="text-align:center;">
+          <div class="card-header">
+            <div class="card-title"><i class="fas fa-play-circle icon" style="color:#00ff88;"></i> Start Microgrid</div>
+          </div>
+          <div style="padding:20px;">
+            <button id="start-grid-btn" onclick="startMicrogrid()" 
+              style="background: linear-gradient(135deg, #00cc66, #009944); width: 160px; height: 160px; border-radius: 50%; border: none; color: white; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 0 20px rgba(0,255,136,0.5);">
+              <i class="fas fa-play" style="font-size: 40px; display: block; margin-bottom: 8px;"></i>
+              START
+            </button>
+            <div style="margin-top: 16px;">
+              <span class="status-indicator online">Status: READY</span>
+            </div>
+            <div style="font-size: 12px; color: var(--text-muted); margin-top: 12px;">
+              ▶️ Resumes normal operation & reconnects to grid
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="kpi-card cyan">
-        <div class="kpi-icon cyan"><i class="fas fa-wind"></i></div>
-        <div class="kpi-value" id="live-wind">${(d.wind || 12.3).toFixed(1)} <span class="kpi-unit">kW</span></div>
-        <div class="kpi-label">Wind Generation</div>
-        <div class="kpi-trend stable"><i class="fas fa-wind"></i> Nominal</div>
-      </div>
-      <div class="kpi-card green">
-        <div class="kpi-icon green"><i class="fas fa-battery-full"></i></div>
-        <div class="kpi-value" id="live-battery">${d.battery.toFixed(0)} <span class="kpi-unit">%</span></div>
-        <div class="kpi-label">Battery SOC</div>
-        <div class="kpi-trend ${d.battery>50?'up':'down'}"><i class="fas fa-${d.battery>50?'arrow-up':'arrow-down'}"></i> ${d.battery>50?'Charging':'Discharging'}</div>
-      </div>
-      <div class="kpi-card red">
-        <div class="kpi-icon red"><i class="fas fa-bolt"></i></div>
-        <div class="kpi-value" id="live-load">${d.load.toFixed(1)} <span class="kpi-unit">kW</span></div>
-        <div class="kpi-label">Total Load</div>
-        <div class="kpi-trend stable"><i class="fas fa-minus"></i> Balanced</div>
-      </div>
-    </div>
 
-    <div class="grid-2" style="margin-bottom:20px;">
-      <!-- Energy Mix Doughnut -->
+      <!-- Row 2: Schedule START/STOP -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-clock icon"></i> Schedule START / STOP</div>
+        </div>
+        <div style="padding:16px;">
+          <div style="display: grid; grid-template-columns: auto 1fr auto 1fr auto; gap: 12px; align-items: center; flex-wrap: wrap;">
+            <label>Enable:</label>
+            <input type="checkbox" id="schedule-enabled" style="width: 20px; height: 20px;">
+            <label>Start:</label>
+            <input type="time" id="schedule-start" value="09:00" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; color: var(--text-primary);">
+            <label>Stop:</label>
+            <input type="time" id="schedule-stop" value="17:00" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; color: var(--text-primary);">
+            <label>Repeat:</label>
+            <select id="schedule-repeat" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; color: var(--text-primary);">
+              <option>Daily</option>
+              <option>Weekdays</option>
+              <option>Weekends</option>
+              <option>Once</option>
+            </select>
+            <label>Date:</label>
+            <input type="date" id="schedule-date" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 6px; padding: 8px; color: var(--text-primary);">
+          </div>
+          <div style="display: flex; gap: 12px; margin-top: 16px;">
+            <button class="btn btn-success" onclick="saveSchedule()"><i class="fas fa-save"></i> Save Schedule</button>
+            <button class="btn btn-danger" onclick="clearSchedule()"><i class="fas fa-trash"></i> Clear Schedule</button>
+          </div>
+          <div id="schedule-next" style="margin-top: 12px; font-size: 12px; color: var(--accent-cyan);">
+            Next scheduled: Not set
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 3: Weather Forecast -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-cloud-sun icon"></i> Weather Forecast</div>
+          <span class="status-indicator online">LIVE</span>
+        </div>
+        <div style="padding:16px; overflow-x: auto;">
+          <div id="weather-container" style="display: flex; gap: 16px; min-width: max-content;">
+            <!-- Weather data will be populated by JavaScript -->
+            <div style="text-align: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px; min-width: 80px;">
+              <div>Loading...</div>
+            </div>
+          </div>
+          <div id="weather-summary" style="margin-top: 12px; font-size: 12px; color: var(--text-muted);"></div>
+        </div>
+      </div>
+
+      <!-- Row 4: Emergency Log -->
       <div class="card">
         <div class="card-header">
-          <div class="card-title"><i class="fas fa-chart-pie icon"></i> Energy Mix</div>
+          <div class="card-title"><i class="fas fa-list-alt icon"></i> Emergency Action Log</div>
+          <button class="btn btn-primary btn-sm" onclick="exportEmergencyLog()"><i class="fas fa-download"></i> Export</button>
         </div>
-        <div class="chart-wrapper" style="height:240px;"><canvas id="chart-mix"></canvas></div>
-      </div>
-      <!-- Solar Real-time -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-solar-panel icon"></i> Solar Power (Real-time)</div>
-          <div class="status-indicator online">MPPT ACTIVE</div>
-        </div>
-        <div class="chart-wrapper"><canvas id="chart-energy-solar"></canvas></div>
-      </div>
-    </div>
-
-    <div class="grid-2">
-      <!-- Load Profile -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-plug icon"></i> Load Profile</div>
-        </div>
-        <div class="chart-wrapper"><canvas id="chart-energy-load"></canvas></div>
-      </div>
-      <!-- Battery Management -->
-      <div class="card">
-        <div class="card-header">
-          <div class="card-title"><i class="fas fa-battery-half icon"></i> Energy Storage Management</div>
-        </div>
-        <div class="battery-visual" style="margin-bottom:16px;">
-          <div class="battery-fill ${d.battery>=50?'high':d.battery>=25?'mid':'low'}" id="battery-fill" style="width:${d.battery.toFixed(0)}%"></div>
-          <div class="battery-text" id="battery-bar-text">${d.battery.toFixed(0)}%</div>
-        </div>
-        <div class="data-row"><span class="data-row-label">State of Charge (SOC)</span><span class="data-row-value green">${d.battery.toFixed(0)}%</span></div>
-        <div class="data-row"><span class="data-row-label">State of Health (SOH)</span><span class="data-row-value cyan">94.2%</span></div>
-        <div class="data-row"><span class="data-row-label">Capacity</span><span class="data-row-value">200 kWh</span></div>
-        <div class="data-row"><span class="data-row-label">Charge Rate</span><span class="data-row-value yellow">2.4 C</span></div>
-        <div class="data-row"><span class="data-row-label">Cycles</span><span class="data-row-value">482</span></div>
-        <div class="data-row"><span class="data-row-label">Est. Backup Time</span><span class="data-row-value">${(d.battery * 2 / d.load).toFixed(1)} hrs</span></div>
-        <hr class="divider">
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-success" style="flex:1;" onclick="addLog('success','system','Manual charge command sent to BMS')"><i class="fas fa-bolt"></i> Force Charge</button>
-          <button class="btn btn-danger" style="flex:1;" onclick="addLog('warning','system','Battery discharge paused by operator')"><i class="fas fa-pause"></i> Pause</button>
+        <div style="max-height: 200px; overflow-y: auto;">
+          <table class="log-table" style="width: 100%;">
+            <thead>
+              <tr><th>Time</th><th>Action</th><th>User</th><th>Details</th></tr>
+            </thead>
+            <tbody id="emergency-log-body">
+              <tr><td colspan="4" style="text-align:center;">Loading...</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
-  </div>`;
+  `;
 
-  setTimeout(() => {
-    const total = d.solar + (d.wind || 12.3) + (d.gridImport || 0) + 0.1;
-    makeChart('chart-mix', 'doughnut', [], [{
-      data: [d.solar, d.wind || 12.3, d.gridImport > 0 ? d.gridImport : 0.1, d.battery * 0.3],
-      backgroundColor: ['rgba(255,204,0,0.8)','rgba(0,212,255,0.8)','rgba(168,85,247,0.8)','rgba(0,255,136,0.8)'],
-      borderColor: ['#ffcc00','#00d4ff','#a855f7','#00ff88'],
-      borderWidth: 2, hoverOffset: 8
-    }], {
-      legend: true,
-      extra: { plugins: { legend: { display: true, position: 'bottom', labels: { color:'#7a9cc0', font:{size:11}, padding:16 } } } }
-    });
-    const mc = STATE.chartInstances['chart-mix'];
-    if (mc) { mc.data.labels = ['Solar','Wind','Grid Import','Battery']; mc.update(); }
+  // Load schedule from localStorage
+  const savedSchedule = JSON.parse(localStorage.getItem('microgrid_schedule') || '{}');
+  document.getElementById('schedule-enabled').checked = savedSchedule.enabled || false;
+  document.getElementById('schedule-start').value = savedSchedule.startTime || '09:00';
+  document.getElementById('schedule-stop').value = savedSchedule.stopTime || '17:00';
+  document.getElementById('schedule-repeat').value = savedSchedule.repeat || 'Daily';
+  document.getElementById('schedule-date').value = savedSchedule.date || new Date().toISOString().split('T')[0];
+  
+  // Update next schedule display
+  updateNextScheduleDisplay();
+  
+  // Load weather data
+  fetchWeatherData();
+  
+  // Load emergency log
+  loadEmergencyLog();
+  
+  // Start weather refresh every 30 minutes
+  if (window.weatherInterval) clearInterval(window.weatherInterval);
+  window.weatherInterval = setInterval(fetchWeatherData, 30 * 60 * 1000);
+}
 
-    makeChart('chart-energy-solar', 'line', CHART_LABELS, [
-      { label:'Solar kW', data: STATE.history.solar, borderColor:'#ffcc00', backgroundColor:'rgba(255,204,0,0.1)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
-    ]);
-    makeChart('chart-energy-load', 'line', CHART_LABELS, [
-      { label:'Load kW', data: STATE.history.load, borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.08)', tension:0.4, fill:true, borderWidth:2, pointRadius:0 }
-    ]);
-  }, 50);
+// ── Control Center Functions ─────────────────────────────────
+
+function emergencyStop() {
+  if (confirm('⚠️ EMERGENCY STOP: This will disconnect the grid and stop all energy flow. Continue?')) {
+    // Change mode to island
+    STATE.data.mode = 'island';
+    updateTopbarPills();
+    
+    // Log the event
+    addEmergencyLog('⛔ EMERGENCY STOP', STATE.currentUser?.username || 'Admin', 'Grid disconnected manually');
+    addLog('critical', 'system', 'EMERGENCY STOP activated - Grid disconnected', STATE.currentUser?.username);
+    addAlert('critical', 'EMERGENCY STOP', 'Grid has been disconnected. Click START to resume.');
+    
+    // Update UI
+    const btn = document.getElementById('emergency-stop-btn');
+    if (btn) {
+      btn.style.transform = 'scale(0.95)';
+      setTimeout(() => { if(btn) btn.style.transform = ''; }, 200);
+    }
+    
+    // Refresh the page to update status
+    renderEnergyPage();
+  }
+}
+
+function startMicrogrid() {
+  if (confirm('✅ START MICROGRID: This will reconnect the grid and resume normal operation. Continue?')) {
+    // Change mode to grid-connected
+    STATE.data.mode = 'grid-connected';
+    updateTopbarPills();
+    
+    // Log the event
+    addEmergencyLog('✅ MICROGRID START', STATE.currentUser?.username || 'Admin', 'Operation resumed, grid reconnected');
+    addLog('success', 'system', 'Microgrid started - Grid reconnected', STATE.currentUser?.username);
+    addAlert('success', 'Microgrid Started', 'Normal operation resumed. Grid is now connected.');
+    
+    // Update UI
+    const btn = document.getElementById('start-grid-btn');
+    if (btn) {
+      btn.style.transform = 'scale(0.95)';
+      setTimeout(() => { if(btn) btn.style.transform = ''; }, 200);
+    }
+    
+    // Refresh the page to update status
+    renderEnergyPage();
+  }
+}
+
+function saveSchedule() {
+  const schedule = {
+    enabled: document.getElementById('schedule-enabled').checked,
+    startTime: document.getElementById('schedule-start').value,
+    stopTime: document.getElementById('schedule-stop').value,
+    repeat: document.getElementById('schedule-repeat').value,
+    date: document.getElementById('schedule-date').value
+  };
+  localStorage.setItem('microgrid_schedule', JSON.stringify(schedule));
+  updateNextScheduleDisplay();
+  addLog('info', 'system', `Schedule saved: ${schedule.startTime} to ${schedule.stopTime}`, STATE.currentUser?.username);
+  alert('Schedule saved successfully!');
+}
+
+function clearSchedule() {
+  localStorage.removeItem('microgrid_schedule');
+  document.getElementById('schedule-enabled').checked = false;
+  document.getElementById('schedule-start').value = '09:00';
+  document.getElementById('schedule-stop').value = '17:00';
+  document.getElementById('schedule-repeat').value = 'Daily';
+  document.getElementById('schedule-date').value = new Date().toISOString().split('T')[0];
+  updateNextScheduleDisplay();
+  addLog('info', 'system', 'Schedule cleared', STATE.currentUser?.username);
+  alert('Schedule cleared');
+}
+
+function updateNextScheduleDisplay() {
+  const schedule = JSON.parse(localStorage.getItem('microgrid_schedule') || '{}');
+  const el = document.getElementById('schedule-next');
+  if (!el) return;
+  
+  if (!schedule.enabled) {
+    el.textContent = 'Next scheduled: Not enabled';
+    return;
+  }
+  
+  const now = new Date();
+  const [startHour, startMin] = schedule.startTime.split(':');
+  const nextStart = new Date();
+  nextStart.setHours(parseInt(startHour), parseInt(startMin), 0, 0);
+  
+  if (nextStart <= now) {
+    nextStart.setDate(nextStart.getDate() + 1);
+  }
+  
+  const diff = Math.round((nextStart - now) / 60000);
+  if (diff < 60) {
+    el.textContent = `Next scheduled: START at ${schedule.startTime} (in ${diff} minutes)`;
+  } else {
+    el.textContent = `Next scheduled: START at ${schedule.startTime} (in ${Math.round(diff/60)} hours)`;
+  }
+}
+
+async function fetchWeatherData() {
+  try {
+    // Using free Open-Meteo API (no API key required)
+    const response = await fetch('https://api.open-meteo.com/v1/forecast?latitude=12.9716&longitude=77.5946&hourly=temperature_2m,shortwave_radiation&forecast_days=1');
+    const data = await response.json();
+    
+    const container = document.getElementById('weather-container');
+    const summary = document.getElementById('weather-summary');
+    
+    if (!container) return;
+    
+    const now = new Date();
+    const currentHour = now.getHours();
+    const hourlyData = data.hourly;
+    
+    let html = '';
+    let maxSolar = 0;
+    
+    for (let i = 0; i < 8; i++) {
+      const hour = (currentHour + i) % 24;
+      const temp = hourlyData.temperature_2m?.[hour] || 0;
+      const solar = hourlyData.shortwave_radiation?.[hour] || 0;
+      if (solar > maxSolar) maxSolar = solar;
+      
+      let icon = '☀️';
+      if (solar < 100) icon = '🌙';
+      else if (solar < 300) icon = '🌤️';
+      else if (solar < 600) icon = '⛅';
+      else icon = '☀️';
+      
+      html += `
+        <div style="text-align: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px; min-width: 80px;">
+          <div style="font-size: 20px;">${icon}</div>
+          <div style="font-size: 18px; font-weight: bold;">${temp.toFixed(0)}°C</div>
+          <div style="font-size: 11px; color: var(--text-muted);">${i === 0 ? 'NOW' : `+${i}h`}</div>
+          <div style="font-size: 10px; color: var(--accent-cyan);">${solar.toFixed(0)} W/m²</div>
+        </div>
+      `;
+    }
+    
+    container.innerHTML = html;
+    
+    if (summary) {
+      if (maxSolar > 800) {
+        summary.innerHTML = `📊 ${maxSolar.toFixed(0)} W/m² peak solar expected. ⚡ High generation - ideal for battery charging!`;
+      } else if (maxSolar > 400) {
+        summary.innerHTML = `📊 ${maxSolar.toFixed(0)} W/m² peak solar expected. ☀️ Good generation expected.`;
+      } else {
+        summary.innerHTML = `📊 ${maxSolar.toFixed(0)} W/m² peak solar expected. 🌙 Low solar - consider grid import.`;
+      }
+    }
+    
+  } catch (error) {
+    console.error('Weather fetch error:', error);
+    const container = document.getElementById('weather-container');
+    if (container) {
+      container.innerHTML = '<div style="padding: 20px; text-align: center;">⚠️ Weather data unavailable. Using estimated values.</div>';
+      // Fallback mock data
+      let mockHtml = '';
+      for (let i = 0; i < 8; i++) {
+        mockHtml += `
+          <div style="text-align: center; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 10px; min-width: 80px;">
+            <div style="font-size: 20px;">${i < 3 ? '☀️' : '🌤️'}</div>
+            <div style="font-size: 18px; font-weight: bold;">${28 - Math.abs(i-3)}°C</div>
+            <div style="font-size: 11px; color: var(--text-muted);">${i === 0 ? 'NOW' : `+${i}h`}</div>
+            <div style="font-size: 10px; color: var(--accent-cyan);">${800 - i*100} W/m²</div>
+          </div>
+        `;
+      }
+      container.innerHTML = mockHtml;
+    }
+  }
+}
+
+function loadEmergencyLog() {
+  const logs = JSON.parse(localStorage.getItem('emergency_logs') || '[]');
+  const tbody = document.getElementById('emergency-log-body');
+  if (!tbody) return;
+  
+  if (logs.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">No emergency events recorded</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = logs.slice(0, 10).map(log => `
+    <tr>
+      <td style="font-family: monospace; font-size: 12px;">${log.time}</td>
+      <td>${log.action}</td>
+      <td style="color: var(--accent-cyan);">${log.user}</td>
+      <td style="font-size: 12px; color: var(--text-muted);">${log.details}</td>
+    </tr>
+  `).join('');
+}
+
+function addEmergencyLog(action, user, details) {
+  const logs = JSON.parse(localStorage.getItem('emergency_logs') || '[]');
+  logs.unshift({
+    time: new Date().toLocaleTimeString(),
+    action: action,
+    user: user,
+    details: details
+  });
+  // Keep only last 50 logs
+  if (logs.length > 50) logs.pop();
+  localStorage.setItem('emergency_logs', JSON.stringify(logs));
+  loadEmergencyLog();
+}
+
+function exportEmergencyLog() {
+  const logs = JSON.parse(localStorage.getItem('emergency_logs') || '[]');
+  let csv = 'Time,Action,User,Details\n';
+  logs.forEach(log => {
+    csv += `"${log.time}","${log.action}","${log.user}","${log.details}"\n`;
+  });
+  const blob = new Blob([csv], {type: 'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `emergency_log_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  addLog('success', 'system', 'Emergency log exported', STATE.currentUser?.username);
 }
 
 function setMode(mode, btn) {

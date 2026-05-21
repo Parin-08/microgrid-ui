@@ -1147,3 +1147,11 @@ body {
   background: #7c3aed;
   border-radius: 3px;
 }
+#emergency-stop-btn:hover, #start-grid-btn:hover {
+  transform: scale(1.05);
+  transition: transform 0.2s;
+}
+
+#emergency-stop-btn:active, #start-grid-btn:active {
+  transform: scale(0.95);
+}
