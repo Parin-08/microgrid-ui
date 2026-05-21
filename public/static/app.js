@@ -481,7 +481,7 @@ function navigateTo(page) {
   if (navEl) navEl.classList.add('active');
 
   const titles = {
-    dashboard:'Dashboard Overview', energy:'Energy Management', grid:'Personalized for you'
+    dashboard:'Dashboard Overview', energy:'Energy Management', grid:'Personalized for you',
     security:'Security Center', anomaly:'Anomaly Detection', logs:'Activity Logs',
     settings:'System Settings', users:'User Management'
   };
