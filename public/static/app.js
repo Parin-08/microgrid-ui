@@ -340,8 +340,8 @@ function renderApp() {
     <div class="sidebar-header">
       <div class="sidebar-logo-icon">⚡</div>
       <div>
-        <div class="sidebar-logo-text">MicroGrid</div>
-        <div class="sidebar-logo-sub">CyberSecure v3.2</div>
+        <div class="sidebar-logo-text">NEXORA O.N.E</div>
+        <div class="sidebar-logo-sub">Grid Control System v3.2</div>
       </div>
     </div>
     <div class="sidebar-nav">${navHTML}</div>
@@ -481,7 +481,7 @@ function navigateTo(page) {
   if (navEl) navEl.classList.add('active');
 
   const titles = {
-    dashboard:'Dashboard Overview', energy:'Energy Management', grid:'Grid & Topology',
+    dashboard:'Dashboard Overview', energy:'Energy Management', grid:'Personalized for you'
     security:'Security Center', anomaly:'Anomaly Detection', logs:'Activity Logs',
     settings:'System Settings', users:'User Management'
   };
