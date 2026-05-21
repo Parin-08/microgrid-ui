@@ -310,7 +310,7 @@ function renderApp() {
   const navItems = [
     { id:'dashboard', icon:'fa-tachometer-alt',  label:'Dashboard',          section:'MONITORING'   },
     { id:'energy',    icon:'fa-bolt',             label:'Energy Management',  section:null           },
-    { id:'grid',      icon:'fa-project-diagram',  label:'Grid & Topology',    section:null           },
+    { id:'grid', icon:'fa-comments',               label:'Personalized for you', section:null },
     { id:'security',  icon:'fa-shield-alt',       label:'Security Center',    section:'CYBERSECURITY'},
     { id:'anomaly',   icon:'fa-brain',            label:'Anomaly Detection',  section:null           },
     { id:'logs',      icon:'fa-list-alt',         label:'Activity Logs',      section:null           },
@@ -1065,102 +1065,124 @@ function setMode(mode, btn) {
 
 // ── GRID PAGE ─────────────────────────────────────────────
 function renderGridPage() {
-  const d = STATE.data;
   const el = document.getElementById('page-grid');
   if (!el) return;
+  
   el.innerHTML = `
-  <div style="padding:24px;">
-    <div class="section-header">
-      <div>
-        <div class="section-title">Grid &amp; Topology</div>
-        <div class="section-subtitle">Power flow visualization — grid synchronization &amp; islanding control</div>
-      </div>
-      <div class="status-pill online"><span class="pulse-dot"></span> GRID-CONNECTED</div>
-    </div>
-
-    <!-- Topology -->
-    <div class="card" style="margin-bottom:20px;">
-      <div class="card-header">
-        <div class="card-title"><i class="fas fa-project-diagram icon"></i> Microgrid Topology — Power Flow</div>
-        <div class="status-indicator online">Live</div>
-      </div>
-      <div class="topology-container" id="topo-container">
-        <svg id="topo-canvas" viewBox="0 0 760 300" preserveAspectRatio="xMidYMid meet">
-          <line x1="130" y1="80" x2="280" y2="150" stroke="rgba(255,204,0,0.5)" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1s" repeatCount="indefinite"/></line>
-          <line x1="130" y1="220" x2="280" y2="150" stroke="rgba(0,212,255,0.5)" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1.2s" repeatCount="indefinite"/></line>
-          <line x1="380" y1="150" x2="480" y2="80" stroke="rgba(0,255,136,0.5)" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" from="0" to="-24" dur="0.8s" repeatCount="indefinite"/></line>
-          <line x1="380" y1="150" x2="480" y2="220" stroke="rgba(168,85,247,0.5)" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" from="0" to="-24" dur="1.1s" repeatCount="indefinite"/></line>
-          <line x1="380" y1="150" x2="620" y2="150" stroke="rgba(255,140,0,0.5)" stroke-width="2" stroke-dasharray="8,4"><animate attributeName="stroke-dashoffset" from="0" to="-24" dur="0.9s" repeatCount="indefinite"/></line>
-        </svg>
-
-        <div class="topo-node" style="left:60px;top:40px;">
-          <div class="topo-node-icon solar">☀️</div>
-          <div class="topo-node-label">Solar PV</div>
-          <div class="topo-node-value" id="topo-solar-val">${d.solar.toFixed(1)} kW</div>
+    <div style="padding:24px; height: calc(100vh - 120px);">
+      <div class="card" style="height: 100%; display: flex; flex-direction: column;">
+        <div class="card-header">
+          <div class="card-title"><i class="fas fa-robot icon"></i> Nexora AI Assistant</div>
+          <span class="status-indicator online">AI READY</span>
         </div>
-        <div class="topo-node" style="left:60px;top:185px;">
-          <div class="topo-node-icon load" style="border-color:rgba(0,212,255,0.6)">💨</div>
-          <div class="topo-node-label">Wind Turbine</div>
-          <div class="topo-node-value" id="live-wind">${(d.wind || 12.3).toFixed(1)} kW</div>
+        <div id="chat-messages" style="flex:1; overflow-y: auto; padding: 16px; background: rgba(0,0,0,0.2);">
+          <div class="chat-message bot">
+            <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+              <div style="width: 32px; height: 32px; border-radius: 50%; background: #1a3a5c; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-robot" style="font-size: 12px;"></i>
+              </div>
+              <div style="flex:1; background: rgba(0,0,0,0.3); padding: 10px 14px; border-radius: 12px;">
+                👋 Hi! I'm Nexora AI. Ask me anything about:<br><br>
+                • 🔋 Microgrid status & optimization<br>
+                • 🛡️ Cyber security threats (Brute Force, DoS, MITM)<br>
+                • ⚡ Energy management & grid stability<br>
+                • 📊 Anomaly detection & threat scores<br>
+                • 🔐 Protection mechanisms (TLS, JWT, RBAC)<br><br>
+                <strong>Example questions:</strong><br>
+                "What is a brute force attack?"<br>
+                "How do I protect against DoS?"<br>
+                "Why is my threat score high?"<br>
+                "How does solar + battery optimization work?"
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="topo-node" style="left:290px;top:108px;">
-          <div class="topo-node-icon controller" style="width:80px;height:80px;font-size:32px;border-radius:50%;">⚡</div>
-          <div class="topo-node-label">Smart Controller</div>
-          <div class="topo-node-value">ACTIVE</div>
-        </div>
-        <div class="topo-node" style="left:490px;top:40px;">
-          <div class="topo-node-icon battery">🔋</div>
-          <div class="topo-node-label">Battery Storage</div>
-          <div class="topo-node-value" id="topo-batt-val">${d.battery.toFixed(0)}%</div>
-        </div>
-        <div class="topo-node" style="left:490px;top:185px;">
-          <div class="topo-node-icon load">⚙️</div>
-          <div class="topo-node-label">Load Center</div>
-          <div class="topo-node-value" id="topo-load-val">${d.load.toFixed(1)} kW</div>
-        </div>
-        <div class="topo-node" style="left:635px;top:108px;">
-          <div class="topo-node-icon grid">🏭</div>
-          <div class="topo-node-label">Utility Grid</div>
-          <div class="topo-node-value" id="topo-grid-val">${(d.gridExport || 0).toFixed(1)} kW</div>
+        <div style="padding: 16px; border-top: 1px solid var(--border-color); display: flex; gap: 12px;">
+          <input type="text" id="chat-input" placeholder="Ask me anything about microgrids or security..." 
+            style="flex:1; background: rgba(0,0,0,0.3); border: 1px solid var(--border-color); border-radius: 8px; padding: 12px; color: var(--text-primary);">
+          <button onclick="sendChatMessage()" class="btn btn-primary" style="background: linear-gradient(135deg,#7c3aed,#a855f7);">
+            <i class="fas fa-paper-plane"></i> Send
+          </button>
         </div>
       </div>
     </div>
+  `;
+async function sendChatMessage() {
+  const input = document.getElementById('chat-input');
+  const message = input.value.trim();
+  if (!message) return;
+  
+  addChatMessage('user', message);
+  input.value = '';
+  addChatMessage('bot', 'Thinking...', true);
+  
+  const context = {
+    solar: STATE.data.solar,
+    battery: STATE.data.battery,
+    load: STATE.data.load,
+    gridImport: STATE.data.gridImport,
+    gridExport: STATE.data.gridExport,
+    temperature: STATE.data.temperature,
+    threatScore: STATE.data.threatScore,
+    cyberThreatScore: STATE.data.cyberThreatScore,
+    attackType: STATE.data.attackType,
+    anomalies: STATE.data.anomalies?.length || 0
+  };
+  
+  try {
+    const response = await fetch('https://microgrid-final.onrender.com/ai/chat', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + STATE.currentUser?.token
+      },
+      body: JSON.stringify({ message, context })
+    });
+    
+    const data = await response.json();
+    removeTypingIndicator();
+    addChatMessage('bot', data.reply);
+    
+  } catch (error) {
+    console.error('Chat error:', error);
+    removeTypingIndicator();
+    addChatMessage('bot', '⚠️ Sorry, AI service is temporarily unavailable. Please try again later.');
+  }
+}
 
-    <div class="grid-3">
-      <div class="card">
-        <div class="card-title" style="margin-bottom:14px;"><i class="fas fa-wave-square icon"></i>&nbsp; Grid Parameters</div>
-        <div class="data-row"><span class="data-row-label">Voltage (L-N)</span><span class="data-row-value cyan" id="live-voltage">${d.voltage.toFixed(1)} V</span></div>
-        <div class="data-row"><span class="data-row-label">Frequency</span><span class="data-row-value cyan" id="live-freq">${d.frequency.toFixed(3)} Hz</span></div>
-        <div class="data-row"><span class="data-row-label">Power Factor</span><span class="data-row-value green">0.97</span></div>
-        <div class="data-row"><span class="data-row-label">THD</span><span class="data-row-value">2.1%</span></div>
-        <div class="data-row"><span class="data-row-label">Apparent Power</span><span class="data-row-value">${(d.load * 1.03).toFixed(1)} kVA</span></div>
-        <div class="data-row"><span class="data-row-label">Reactive Power</span><span class="data-row-value yellow">3.2 kVAR</span></div>
+function addChatMessage(role, text, isTyping = false) {
+  const container = document.getElementById('chat-messages');
+  if (!container) return;
+  
+  const div = document.createElement('div');
+  if (isTyping) div.id = 'typing-indicator';
+  
+  const isUser = role === 'user';
+  div.innerHTML = `
+    <div style="display: flex; gap: 10px; margin-bottom: 12px; ${isUser ? 'flex-direction: row-reverse;' : ''}">
+      <div style="width: 32px; height: 32px; border-radius: 50%; background: ${isUser ? '#7c3aed' : '#1a3a5c'}; display: flex; align-items: center; justify-content: center;">
+        <i class="fas ${isUser ? 'fa-user' : 'fa-robot'}"></i>
       </div>
-      <div class="card">
-        <div class="card-title" style="margin-bottom:14px;"><i class="fas fa-sync-alt icon"></i>&nbsp; Synchronization</div>
-        <div class="data-row"><span class="data-row-label">Sync Status</span><span class="data-row-value green">✓ Synchronized</span></div>
-        <div class="data-row"><span class="data-row-label">Phase Angle</span><span class="data-row-value">0.3°</span></div>
-        <div class="data-row"><span class="data-row-label">Voltage Match</span><span class="data-row-value green">99.8%</span></div>
-        <div class="data-row"><span class="data-row-label">Freq. Deviation</span><span class="data-row-value cyan">${(d.frequency-50).toFixed(3)} Hz</span></div>
-        <div class="data-row"><span class="data-row-label">PCC Breaker</span><span class="data-row-value green">CLOSED</span></div>
-        <div class="data-row"><span class="data-row-label">Sync Timer</span><span class="data-row-value">42 ms</span></div>
-        <hr class="divider">
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-danger btn-sm" style="flex:1;" onclick="addLog('warning','system','Manual island mode triggered');setMode('island',null)"><i class="fas fa-plug"></i> Island</button>
-          <button class="btn btn-success btn-sm" style="flex:1;" onclick="addLog('success','system','Grid reconnection initiated');setMode('grid-connected',null)"><i class="fas fa-link"></i> Reconnect</button>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-title" style="margin-bottom:14px;"><i class="fas fa-shield-alt icon"></i>&nbsp; Protection Status</div>
-        <div class="data-row"><span class="data-row-label">OVP</span><span class="data-row-value green">Normal</span></div>
-        <div class="data-row"><span class="data-row-label">UVP</span><span class="data-row-value green">Normal</span></div>
-        <div class="data-row"><span class="data-row-label">OFP</span><span class="data-row-value green">Normal</span></div>
-        <div class="data-row"><span class="data-row-label">UFP</span><span class="data-row-value green">Normal</span></div>
-        <div class="data-row"><span class="data-row-label">OCP</span><span class="data-row-value green">Normal</span></div>
-        <div class="data-row"><span class="data-row-label">Anti-Islanding</span><span class="data-row-value cyan">Active</span></div>
+      <div style="flex:1; background: rgba(0,0,0,0.3); padding: 10px 14px; border-radius: 12px;">
+        ${isTyping ? '<i class="fas fa-spinner fa-spin"></i> Thinking...' : text.replace(/\n/g, '<br>')}
       </div>
     </div>
-  </div>`;
+  `;
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+}
+
+function removeTypingIndicator() {
+  const indicator = document.getElementById('typing-indicator');
+  if (indicator) indicator.remove();
+}
+  // Add event listener for Enter key
+  const chatInput = document.getElementById('chat-input');
+  if (chatInput) {
+    chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendChatMessage();
+    });
+  }
 }
 
 // ── SECURITY PAGE ─────────────────────────────────────────
