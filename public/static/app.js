@@ -1314,30 +1314,37 @@ function renderAnomalyPage() {
   const el = document.getElementById('page-anomaly');
   if (!el) return;
 
+  // Time filter - only last 1 hour
+  const oneHourAgo = Date.now() - 60 * 60 * 1000;
+
   // Get anomalies from backend
   const anomalies = d.anomalies || [];
   
-  // Separate cyber vs physical anomalies
+  // Separate cyber vs physical anomalies (with time and resolved filter)
   const cyberAnomalies = anomalies.filter(a => 
-    a.attack_type === 'BruteForce' || 
-    a.attack_type === 'CredentialStuffing' ||
-    a.attack_type === 'Phishing' ||
-    a.attack_type === 'MITM' ||
-    a.attack_type === 'DDoS' ||
-    a.attack_type === 'SessionHijacking' ||
-    a.signal === 'failed_login_count' ||
-    a.signal === 'unique_usernames_tried'
+    (a.attack_type === 'BruteForce' || 
+     a.attack_type === 'CredentialStuffing' ||
+     a.attack_type === 'Phishing' ||
+     a.attack_type === 'MITM' ||
+     a.attack_type === 'DDoS' ||
+     a.attack_type === 'SessionHijacking' ||
+     a.signal === 'failed_login_count' ||
+     a.signal === 'unique_usernames_tried') &&
+    a.resolved !== true &&
+    new Date(a.time).getTime() > oneHourAgo
   );
   
   const physicalAnomalies = anomalies.filter(a => 
-    a.attack_type !== 'BruteForce' && 
-    a.attack_type !== 'CredentialStuffing' &&
-    a.attack_type !== 'Phishing' &&
-    a.attack_type !== 'MITM' &&
-    a.attack_type !== 'DDoS' &&
-    a.attack_type !== 'SessionHijacking' &&
-    a.signal !== 'failed_login_count' &&
-    a.signal !== 'attack_simulation'
+    (a.attack_type !== 'BruteForce' && 
+     a.attack_type !== 'CredentialStuffing' &&
+     a.attack_type !== 'Phishing' &&
+     a.attack_type !== 'MITM' &&
+     a.attack_type !== 'DDoS' &&
+     a.attack_type !== 'SessionHijacking' &&
+     a.signal !== 'failed_login_count' &&
+     a.signal !== 'attack_simulation') &&
+    a.resolved !== true &&
+    new Date(a.time).getTime() > oneHourAgo
   );
 
   // Cyber threat detectors
@@ -1349,6 +1356,8 @@ function renderAnomalyPage() {
     { name:'DDoS Attack', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'DDoS').length * 20), detected: cyberAnomalies.some(a => a.attack_type === 'DDoS') },
     { name:'Session Hijacking', score: Math.min(100, cyberAnomalies.filter(a => a.attack_type === 'SessionHijacking').length * 20), detected: cyberAnomalies.some(a => a.attack_type === 'SessionHijacking') },
   ];
+  
+  // ... rest of your HTML rendering
 
   // Physical threat detectors (only from MATLAB, not simulations)
   const physicalDetectors = [
