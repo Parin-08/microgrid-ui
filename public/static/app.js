@@ -1658,7 +1658,7 @@ function renderGridPage() {
     <div style="padding:24px; height: calc(100vh - 120px);">
       <div class="card" style="height: 100%; display: flex; flex-direction: column;">
         <div class="card-header">
-          <div class="card-title"><i class="fas fa-robot icon"></i> Nexora AI Assistant</div>
+          <div class="card-title"><i class="fas fa-robot icon"></i> Nexora AI </div>
           <span class="status-indicator online">AI READY</span>
         </div>
         <div id="chat-messages" style="flex:1; overflow-y: auto; padding: 16px; background: rgba(0,0,0,0.2);">
