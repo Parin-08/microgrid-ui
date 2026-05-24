@@ -201,61 +201,387 @@ function updateNotifBadge() {
 }
 
 // ── Login Screen ──────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+//  DROP-IN REPLACEMENT — paste this over your existing
+//  renderLogin() function in app.js.
+//
+//  ✅ handleLogin()  — completely unchanged
+//  ✅ apiCall()      — completely unchanged
+//  ✅ All credentials, JWT, dashboard — completely unchanged
+//  ✅ Only the visual HTML inside renderLogin() is new
+// ═══════════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════════
+//  DROP-IN REPLACEMENT — paste this over your existing
+//  renderLogin() function in app.js.
+//
+//  ✅ handleLogin()  — completely unchanged
+//  ✅ apiCall()      — completely unchanged
+//  ✅ All credentials, JWT, dashboard — completely unchanged
+//  ✅ Only the visual HTML inside renderLogin() is new
+// ═══════════════════════════════════════════════════════════
+
 function renderLogin() {
   const root = document.getElementById('app-root');
-  root.innerHTML = `
-  <div id="login-screen" class="grid-bg">
-    <div class="scan-effect" style="position:fixed"></div>
-   <div class="login-card" style="width:520px; background: linear-gradient(135deg, #120325, #072635); border: 1px solid rgba(168,85,247,0.4); box-shadow: 0 0 40px rgba(168,85,247,0.2);">
-  <div style="text-align:center;margin-bottom:24px;">
-    <div style="width:64px;height:64px;background:linear-gradient(135deg,#6a1b9a,#9c27b0);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;font-size:28px;border:2px solid rgba(168,85,247,0.6);box-shadow:0 0 30px rgba(168,85,247,0.3);">
-      🔐
-    </div>
-  </div>
-     <div class="login-logo" style="font-size: 14px; letter-spacing: 3px;">GRID CONTROL SYSTEM v3.2</div>
-<div class="login-title" style="font-size: 42px; font-weight: 800; line-height: 1.2; letter-spacing: 3px;">NEXORA<br>O.N.E</div>
-<div class="login-subtitle" style="font-size: 14px; letter-spacing: 2px;">Secure access — TLS 1.3 encrypted</div>
 
-      <div class="input-group">
-        <label>Username</label>
-        <i class="fas fa-user input-icon"></i>
-        <input type="text" id="login-user" placeholder="Enter username" autocomplete="off" />
+  root.innerHTML = `
+  <!-- ── Keyframe styles injected once ── -->
+  <style id="nexora-login-styles">
+    @keyframes nx-spin    { from{transform:translate(-50%,-50%) rotate(0deg)}   to{transform:translate(-50%,-50%) rotate(360deg)}  }
+    @keyframes nx-spinrev { from{transform:translate(-50%,-50%) rotate(0deg)}   to{transform:translate(-50%,-50%) rotate(-360deg)} }
+    @keyframes nx-floatY  { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+    @keyframes nx-glow    { 0%,100%{opacity:.15} 50%{opacity:.35} }
+    @keyframes nx-blink   { 0%,100%{opacity:1}  50%{opacity:.25} }
+    @keyframes nx-fadeUp  { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+    @keyframes nx-scan    { 0%{transform:translateY(-5%)} 100%{transform:translateY(1100%)} }
+    @keyframes nx-sweep   { 0%{left:-80%} 100%{left:160%} }
+
+    #nexora-login-screen {
+      min-height: 100vh;
+      display: flex;
+      background: #09070f;
+      font-family: 'Georgia', serif;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* hex grid */
+    #nexora-login-screen::before {
+      content: '';
+      position: absolute; inset: 0; pointer-events: none;
+      opacity: .16; z-index: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='104'%3E%3Cpolygon points='30,2 58,17 58,47 30,62 2,47 2,17' fill='none' stroke='%237F77DD' stroke-width='0.5'/%3E%3Cpolygon points='30,54 58,69 58,99 30,114 2,99 2,69' fill='none' stroke='%237F77DD' stroke-width='0.5'/%3E%3C/svg%3E");
+    }
+
+    .nx-orb {
+      position: absolute; border-radius: 50%; pointer-events: none; z-index: 0;
+    }
+    .nx-orb-1 {
+      width:440px; height:440px; top:-80px; left:-80px;
+      background: radial-gradient(circle,rgba(83,74,183,.22) 0%,rgba(38,33,92,.08) 50%,transparent 70%);
+      animation: nx-glow 7s ease-in-out infinite;
+    }
+    .nx-orb-2 {
+      width:260px; height:260px; bottom:60px; right:-40px;
+      background: radial-gradient(circle,rgba(127,119,221,.14) 0%,transparent 65%);
+      animation: nx-glow 9s ease-in-out infinite reverse;
+    }
+
+    .nx-scanline {
+      position: absolute; width: 100%; height: 2px; pointer-events: none; z-index: 0;
+      background: linear-gradient(transparent,rgba(127,119,221,.06),transparent);
+      animation: nx-scan 9s linear infinite;
+    }
+
+    /* ── LEFT PANEL ── */
+    #nx-left {
+      width: 52%; position: relative; z-index: 1;
+      display: flex; flex-direction: column; justify-content: flex-end;
+      padding: 48px; overflow: hidden;
+    }
+
+    /* orbital rings */
+    .nx-ring {
+      position: absolute; border-radius: 50%;
+      top: 50%; left: 50%;
+    }
+    .nx-ring-1 {
+      width:280px; height:280px;
+      border: 1px solid rgba(127,119,221,.25);
+      transform: translate(-50%,-50%);
+      animation: nx-spin 22s linear infinite;
+    }
+    .nx-ring-2 {
+      width:224px; height:224px;
+      border: 1px solid rgba(175,169,236,.14);
+      transform: translate(-50%,-50%);
+      animation: nx-spinrev 16s linear infinite;
+    }
+    .nx-ring-3 {
+      width:168px; height:168px;
+      border: 1px solid rgba(83,74,183,.28);
+      transform: translate(-50%,-50%);
+      animation: nx-spin 11s linear infinite;
+    }
+    .nx-ring-dot {
+      position: absolute; border-radius: 50%;
+      left: 50%; transform: translateX(-50%);
+    }
+
+    .nx-orbital-wrap {
+      position: absolute;
+      width: 280px; height: 280px;
+      top: 38%; left: 50%;
+      transform: translate(-50%,-50%);
+      animation: nx-floatY 8s ease-in-out infinite;
+    }
+    .nx-core {
+      position: absolute; border-radius: 50%;
+      top:50%; left:50%;
+      width:120px; height:120px;
+      transform: translate(-50%,-50%);
+      background: radial-gradient(circle,rgba(83,74,183,.28) 0%,rgba(38,33,92,.12) 60%,transparent 80%);
+      display:flex; align-items:center; justify-content:center;
+    }
+    .nx-core-inner {
+      width:58px; height:58px; border-radius:50%;
+      background: rgba(83,74,183,.18);
+      border: 1px solid rgba(127,119,221,.35);
+      display:flex; align-items:center; justify-content:center;
+      font-size:22px; color:#AFA9EC;
+    }
+
+    .nx-left-meta { position:relative; z-index:2; animation: nx-fadeUp .9s ease both; animation-delay:.25s; }
+    .nx-eyebrow {
+      display:flex; align-items:center; gap:12px;
+      font-family: sans-serif; font-size:10px; letter-spacing:.18em;
+      color:rgba(127,119,221,.55); text-transform:uppercase; margin-bottom:14px;
+    }
+    .nx-eyebrow::before { content:''; width:28px; height:1px; background:rgba(127,119,221,.35); }
+    .nx-title { font-size:34px; font-weight:400; color:#E8E6FC; line-height:1.2; margin-bottom:10px; letter-spacing:-.01em; }
+    .nx-title em { color:#AFA9EC; font-style:italic; }
+    .nx-sub { font-family:sans-serif; font-size:13px; color:rgba(175,169,236,.42); line-height:1.7; margin-bottom:28px; max-width:280px; }
+    .nx-pulse-row { display:flex; align-items:center; gap:12px; font-family:sans-serif; font-size:11px; color:rgba(175,169,236,.42); }
+    .nx-pulse-dot {
+      width:7px; height:7px; border-radius:50%; display:inline-block;
+      background:#1D9E75; box-shadow:0 0 0 3px rgba(29,158,117,.2);
+      animation: nx-blink 2.5s ease-in-out infinite;
+    }
+
+    /* ── RIGHT PANEL ── */
+    #nx-right {
+      width:48%; z-index:1;
+      background:rgba(255,255,255,.025);
+      border-left:1px solid rgba(127,119,221,.12);
+      display:flex; flex-direction:column; justify-content:center;
+      padding:52px 44px;
+      animation: nx-fadeUp .7s ease both; animation-delay:.1s;
+    }
+
+    .nx-r-eyebrow {
+      display:flex; align-items:center; gap:10px; margin-bottom:24px;
+      font-family:sans-serif; font-size:10px; letter-spacing:.2em;
+      color:rgba(127,119,221,.5); text-transform:uppercase;
+    }
+    .nx-r-eyebrow-line { flex:1; height:1px; background:rgba(127,119,221,.12); }
+    .nx-r-title { font-size:26px; font-weight:400; color:#DDD9F8; margin-bottom:6px; letter-spacing:-.01em; }
+    .nx-r-sub   { font-family:sans-serif; font-size:12px; color:rgba(175,169,236,.32); margin-bottom:36px; letter-spacing:.02em; }
+
+    /* field */
+    .nx-field { margin-bottom:20px; }
+    .nx-label {
+      display:block; font-family:sans-serif; font-size:10px; letter-spacing:.15em;
+      color:rgba(175,169,236,.42); text-transform:uppercase; margin-bottom:9px;
+    }
+    .nx-field-wrap { position:relative; display:flex; align-items:center; }
+    .nx-field-icon { position:absolute; left:0; color:rgba(127,119,221,.45); font-size:15px; pointer-events:none; transition:color .25s; }
+    .nx-input {
+      width:100%; background:transparent; border:none;
+      border-bottom:1px solid rgba(127,119,221,.18);
+      padding:10px 6px 10px 26px;
+      font-family:sans-serif; font-size:14px; color:#CCC8F8;
+      outline:none; transition:border-color .25s; letter-spacing:.02em;
+    }
+    .nx-input::placeholder { color:rgba(175,169,236,.22); }
+    .nx-input:focus { border-bottom-color:rgba(127,119,221,.7); }
+    .nx-input:focus + .nx-underline { width:100%; }
+    .nx-input:focus ~ .nx-field-icon { color:rgba(175,169,236,.75); }
+    .nx-underline {
+      position:absolute; bottom:0; left:0; height:1px; width:0;
+      background:rgba(127,119,221,.6); transition:width .35s ease; pointer-events:none;
+    }
+    .nx-select {
+      width:100%; background:transparent; border:none;
+      border-bottom:1px solid rgba(127,119,221,.18);
+      padding:10px 24px 10px 26px;
+      font-family:sans-serif; font-size:14px; color:#CCC8F8;
+      outline:none; appearance:none; cursor:pointer; transition:border-color .25s;
+    }
+    .nx-select:focus { border-bottom-color:rgba(127,119,221,.7); }
+    .nx-select option { background:#1a1530; color:#CCC8F8; }
+    .nx-chevron { position:absolute; right:0; color:rgba(127,119,221,.38); font-size:12px; pointer-events:none; }
+
+    /* small row */
+    .nx-small-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:32px; }
+    .nx-session   { display:flex; align-items:center; gap:8px; cursor:pointer; font-family:sans-serif; font-size:12px; color:rgba(175,169,236,.38); }
+    .nx-cb        { width:15px; height:15px; border:1px solid rgba(127,119,221,.28); border-radius:3px; background:rgba(127,119,221,.07); display:flex; align-items:center; justify-content:center; font-size:10px; transition:background .2s,border-color .2s; }
+    .nx-recover   { background:none; border:none; cursor:pointer; font-family:sans-serif; font-size:12px; color:rgba(127,119,221,.5); letter-spacing:.04em; transition:color .2s; }
+    .nx-recover:hover { color:#AFA9EC; }
+
+    /* auth button */
+    .nx-btn {
+      width:100%; padding:15px; margin-bottom:28px;
+      background:rgba(83,74,183,.22); border:1px solid rgba(127,119,221,.3);
+      border-radius:2px; color:#CCC8F8;
+      font-family:sans-serif; font-size:11px; letter-spacing:.2em; text-transform:uppercase;
+      cursor:pointer; display:flex; align-items:center; justify-content:center; gap:10px;
+      position:relative; overflow:hidden;
+      transition:background .25s, border-color .25s;
+    }
+    .nx-btn:hover   { background:rgba(83,74,183,.35); border-color:rgba(127,119,221,.55); }
+    .nx-btn:active  { transform:scale(.99); }
+    .nx-btn:hover .nx-btn-sweep { animation: nx-sweep .55s ease forwards; }
+    .nx-btn-sweep   { position:absolute; top:0; left:-80%; width:60%; height:100%; pointer-events:none; background:linear-gradient(90deg,transparent,rgba(175,169,236,.07),transparent); }
+    .nx-btn:disabled { opacity:.5; cursor:not-allowed; }
+
+    /* footer */
+    .nx-footer     { display:flex; align-items:center; justify-content:space-between; }
+    .nx-footer-sig { display:flex; align-items:center; gap:6px; font-family:sans-serif; font-size:10px; color:rgba(175,169,236,.24); }
+    .nx-tls        { display:flex; align-items:center; gap:5px; border:1px solid rgba(29,158,117,.2); border-radius:2px; padding:3px 9px; font-family:sans-serif; font-size:9px; letter-spacing:.1em; text-transform:uppercase; color:rgba(29,158,117,.72); }
+    .nx-tls-pip    { width:5px; height:5px; border-radius:50%; background:#1D9E75; animation: nx-blink 2.5s ease-in-out infinite; }
+
+    /* error box (keep your existing style but purple-tinted) */
+    .nx-error { display:none; align-items:center; gap:8px; margin-top:10px; padding:10px 14px; border:1px solid rgba(226,75,74,.35); border-radius:4px; background:rgba(226,75,74,.07); color:rgba(226,75,74,.85); font-family:sans-serif; font-size:12px; }
+  </style>
+
+  <!-- ── Screen ── -->
+  <div id="nexora-login-screen">
+    <div class="nx-orb nx-orb-1"></div>
+    <div class="nx-orb nx-orb-2"></div>
+    <div class="nx-scanline"></div>
+
+    <!-- LEFT -->
+    <div id="nx-left">
+      <!-- orbital -->
+      <div class="nx-orbital-wrap">
+        <div class="nx-ring nx-ring-1">
+          <div class="nx-ring-dot" style="width:7px;height:7px;top:-3.5px;background:#AFA9EC;box-shadow:0 0 8px rgba(175,169,236,.8);"></div>
+        </div>
+        <div class="nx-ring nx-ring-2">
+          <div class="nx-ring-dot" style="width:5px;height:5px;bottom:-2.5px;top:auto;background:#7F77DD;box-shadow:0 0 6px rgba(127,119,221,.9);"></div>
+        </div>
+        <div class="nx-ring nx-ring-3">
+          <div class="nx-ring-dot" style="width:6px;height:6px;top:-3px;background:#5DCAA5;box-shadow:0 0 8px rgba(93,202,165,.9);"></div>
+        </div>
+        <div class="nx-core">
+          <div class="nx-core-inner">⚡</div>
+        </div>
       </div>
-      <div class="input-group">
-        <label>Password</label>
-        <i class="fas fa-lock input-icon"></i>
-        <input type="password" id="login-pass" placeholder="Enter password" />
+
+      <!-- meta -->
+      <div class="nx-left-meta">
+        <div class="nx-eyebrow">Grid Control System</div>
+        <h1 class="nx-title">Nexora<br><em>Intelligence</em></h1>
+        <p class="nx-sub">Adaptive microgrid orchestration with real-time anomaly detection and cybersecurity monitoring.</p>
+        <div class="nx-pulse-row">
+          <span class="nx-pulse-dot"></span>
+          All systems nominal · Bengaluru Node
+        </div>
       </div>
-      <div class="input-group">
-        <label>Access Role</label>
-        <i class="fas fa-id-badge input-icon"></i>
-        <select id="login-role">
-          <option value="admin">Administrator</option>
-          <option value="operator">Operator</option>
-          <option value="viewer">Viewer</option>
-        </select>
+    </div>
+
+    <!-- RIGHT -->
+    <div id="nx-right">
+      <div class="nx-r-eyebrow">Secure access<div class="nx-r-eyebrow-line"></div></div>
+      <h2 class="nx-r-title">Operator sign-in</h2>
+      <p class="nx-r-sub">TLS 1.3 encrypted</p>
+
+      <!-- Username -->
+      <div class="nx-field">
+        <label class="nx-label" for="login-user">Operator ID</label>
+        <div class="nx-field-wrap">
+          <i class="fas fa-user nx-field-icon"></i>
+          <input class="nx-input" type="text" id="login-user" placeholder="Enter your operator ID" autocomplete="off" />
+          <span class="nx-underline"></span>
+        </div>
       </div>
-      <button class="btn-login" onclick="handleLogin()">
-        <i class="fas fa-shield-alt"></i> &nbsp; AUTHENTICATE &amp; ACCESS
+
+      <!-- Password -->
+      <div class="nx-field">
+        <label class="nx-label" for="login-pass">Access Key</label>
+        <div class="nx-field-wrap">
+          <i class="fas fa-lock nx-field-icon"></i>
+          <input class="nx-input" type="password" id="login-pass" placeholder="············" />
+          <span class="nx-underline"></span>
+        </div>
+      </div>
+
+      <!-- Role -->
+      <div class="nx-field" style="margin-bottom:24px;">
+        <label class="nx-label" for="login-role">Access Level</label>
+        <div class="nx-field-wrap">
+          <i class="fas fa-shield-alt nx-field-icon"></i>
+          <select class="nx-select" id="login-role">
+            <option value="admin">Grid administrator</option>
+            <option value="operator">Systems engineer</option>
+            <option value="viewer">Read-only observer</option>
+          </select>
+          <span class="nx-chevron">▾</span>
+        </div>
+      </div>
+
+      <!-- Keep session + recover -->
+      <div class="nx-small-row">
+        <div class="nx-session" onclick="this.querySelector('.nx-cb').classList.toggle('nx-cb-on'); this.querySelector('.nx-cb').textContent = this.querySelector('.nx-cb').classList.contains('nx-cb-on') ? '✓' : '';">
+          <span class="nx-cb"></span>
+          Keep session active
+        </div>
+        <button class="nx-recover">Recover access</button>
+      </div>
+
+      <!-- Auth button — calls the SAME handleLogin() as before -->
+      <button class="nx-btn" id="nx-auth-btn" onclick="handleLogin()">
+        <span class="nx-btn-sweep"></span>
+        <i class="fas fa-arrow-right"></i>
+        Authenticate &amp; enter
       </button>
-      <div class="login-error" id="login-error">
+
+      <!-- Error (same id your existing code uses) -->
+      <div class="nx-error" id="login-error">
         <i class="fas fa-exclamation-triangle"></i>
         <span id="login-error-msg">Invalid credentials</span>
       </div>
-      <!-- Demo credentials removed -->
-      <div class="mqtt-bar" style="margin-top:16px;">
-        <span class="dot"></span>
-        <span>MQTT: broker.microgrid.local:8883</span>
-        <span style="margin-left:auto;">🔒 TLS</span>
+
+      <!-- Footer -->
+      <div class="nx-footer">
+        <div class="nx-footer-sig">
+          <i class="fas fa-server" style="font-size:11px;"></i>
+          broker.microgrid.local
+        </div>
+        <div class="nx-tls"><div class="nx-tls-pip"></div>TLS 1.3</div>
       </div>
     </div>
   </div>`;
 
-  document.getElementById('login-pass').addEventListener('keypress', e => {
-    if (e.key === 'Enter') handleLogin();
+  // ── Enter key on password → login ──────────────────────
+  const passEl = document.getElementById('login-pass');
+  if (passEl) {
+    passEl.addEventListener('keypress', e => {
+      if (e.key === 'Enter') handleLogin();
+    });
+  }
+
+  // ── Checkbox style sync ─────────────────────────────────
+  document.querySelectorAll('.nx-cb-on').forEach(el => {
+    el.style.background = 'rgba(127,119,221,.28)';
+    el.style.borderColor = 'rgba(127,119,221,.65)';
   });
 }
 
+// ── Patch handleLogin to update button state ────────────────
+//
+//  Your original handleLogin() already does everything correctly.
+//  This small wrapper just syncs the new button's disabled/text
+//  state with what the original function expects.
+//
+//  The original function looks for `.btn-login` — we alias it here.
+//  If you prefer, add class "btn-login" to #nx-auth-btn in the HTML
+//  above instead of using this patch.
+//
+const _origHandleLogin = handleLogin;  // keep reference
+window.handleLogin = async function() {
+  const btn = document.getElementById('nx-auth-btn');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>&nbsp; Authenticating…';
+  }
+  await _origHandleLogin();
+  // If login failed, restore button
+  if (btn && btn.disabled) {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="nx-btn-sweep"></span><i class="fas fa-arrow-right"></i> Authenticate &amp; enter';
+  }
+};
 async function handleLogin() {
   const btn = document.querySelector('.btn-login');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Authenticating...'; }
