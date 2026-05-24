@@ -221,6 +221,16 @@ function updateNotifBadge() {
 //  ✅ Only the visual HTML inside renderLogin() is new
 // ═══════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════
+//  DROP-IN REPLACEMENT — paste this over your existing
+//  renderLogin() function in app.js.
+//
+//  ✅ handleLogin()  — completely unchanged
+//  ✅ apiCall()      — completely unchanged
+//  ✅ All credentials, JWT, dashboard — completely unchanged
+//  ✅ Only the visual HTML inside renderLogin() is new
+// ═══════════════════════════════════════════════════════════
+
 function renderLogin() {
   const root = document.getElementById('app-root');
 
@@ -334,14 +344,14 @@ function renderLogin() {
     .nx-left-meta { position:relative; z-index:2; animation: nx-fadeUp .9s ease both; animation-delay:.25s; }
     .nx-eyebrow {
       display:flex; align-items:center; gap:12px;
-      font-family: sans-serif; font-size:10px; letter-spacing:.18em;
-      color:rgba(127,119,221,.55); text-transform:uppercase; margin-bottom:14px;
+      font-family: sans-serif; font-size:11px; letter-spacing:.22em;
+      color:rgba(127,119,221,.65); text-transform:uppercase; margin-bottom:18px;
     }
-    .nx-eyebrow::before { content:''; width:28px; height:1px; background:rgba(127,119,221,.35); }
-    .nx-title { font-size:34px; font-weight:400; color:#E8E6FC; line-height:1.2; margin-bottom:10px; letter-spacing:-.01em; }
-    .nx-title em { color:#AFA9EC; font-style:italic; }
-    .nx-sub { font-family:sans-serif; font-size:13px; color:rgba(175,169,236,.42); line-height:1.7; margin-bottom:28px; max-width:280px; }
-    .nx-pulse-row { display:flex; align-items:center; gap:12px; font-family:sans-serif; font-size:11px; color:rgba(175,169,236,.42); }
+    .nx-eyebrow::before { content:""; width:32px; height:1px; background:rgba(127,119,221,.45); }
+    .nx-title { font-size:54px; font-weight:400; color:#E8E6FC; line-height:1.08; margin-bottom:18px; letter-spacing:-.025em; text-shadow:0 0 80px rgba(127,119,221,.3); }
+    .nx-title em { font-style:italic; background:linear-gradient(135deg,#DDD9F8,#AFA9EC,#7F77DD); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .nx-sub { font-family:sans-serif; font-size:15px; color:rgba(175,169,236,.55); line-height:1.8; margin-bottom:32px; max-width:320px; }
+    .nx-pulse-row { display:flex; align-items:center; gap:12px; font-family:sans-serif; font-size:12px; color:rgba(175,169,236,.5); }
     .nx-pulse-dot {
       width:7px; height:7px; border-radius:50%; display:inline-block;
       background:#1D9E75; box-shadow:0 0 0 3px rgba(29,158,117,.2);
