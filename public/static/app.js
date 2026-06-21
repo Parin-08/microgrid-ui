@@ -676,7 +676,7 @@ function renderApp() {
     <div class="sidebar-header">
       <div class="sidebar-logo-icon">⚡</div>
       <div>
-        <div class="sidebar-logo-text">NEXORA O.N.E</div>
+        <div class="sidebar-logo-text">NEXORA INTELLIGENCE</div>
         <div class="sidebar-logo-sub">Grid Control System v3.2</div>
       </div>
     </div>
